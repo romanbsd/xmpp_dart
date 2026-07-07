@@ -91,6 +91,48 @@ void main() {
     await client.close();
   });
 
+  test('auto-answers XEP-0199 ping', () async {
+    final transports = <FakeTransport>[];
+    Future<Transport> factory(String host, int port, {bool secure = false}) async {
+      final t = FakeTransport();
+      transports.add(t);
+      return t;
+    }
+
+    final client = XmppClient(
+      host: 'ex',
+      domain: 'ex',
+      username: 'alice',
+      password: 'secret',
+      tls: TlsMode.none,
+      transportFactory: factory,
+    );
+
+    final fut = client.connect();
+    await pump();
+    final t = transports[0];
+    t.deliver(_features(_plain));
+    await pump();
+    t.deliver('<success/>');
+    await pump();
+    t.deliver(_features(''));
+    await pump();
+    t.deliver(_bindResult);
+    await fut;
+    await pump();
+
+    t.deliver("<iq type='get' from='srv.ex' id='p1'>"
+        "<ping xmlns='urn:xmpp:ping'/></iq>");
+    await pump();
+
+    expect(
+        t.writes.any((w) =>
+            w.contains('type="result"') && w.contains('id="p1"')),
+        isTrue);
+
+    await client.close();
+  });
+
   test('does not reconnect after an explicit close', () async {
     final transports = <FakeTransport>[];
     Future<Transport> factory(String host, int port, {bool secure = false}) async {

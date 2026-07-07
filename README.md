@@ -510,6 +510,29 @@ When generating code against this library:
 10. Do **not** invent helper classes from this package — they do not exist.
 11. Do **not** use WebSocket, stream management, or SCRAM-SHA-256 — not implemented.
 
+## Answering inbound IQs
+
+Register handlers for `iq get`/`set`; the reply (result or error) is built and
+sent for you. `urn:xmpp:ping` is answered automatically.
+
+```dart
+client.onIqGet('jabber:iq:version', 'query', (iq, child) {
+  return xml('query', attrs: {'xmlns': 'jabber:iq:version'}, children: [
+    xml('name', text: 'my-bot'),
+    xml('version', text: '1.0'),
+  ]);
+});
+
+// Reject with a stanza error:
+client.onIqSet('urn:example', 'cmd', (iq, child) {
+  throw IqError('forbidden', type: 'auth');
+});
+```
+
+Return `null` for an empty `<iq type="result"/>`. Unmatched queries get
+`service-unavailable`, malformed ones `bad-request`. Handlers persist across
+reconnects.
+
 ## Testing
 
 ```bash

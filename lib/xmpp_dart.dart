@@ -10,6 +10,7 @@ export 'src/connection.dart'
         XmppException,
         XmppState;
 export 'src/iq.dart' show IqCaller, IqException;
+export 'src/iq_responder.dart' show IqError, IqHandler, IqResponder;
 export 'src/jid.dart' show Jid;
 export 'src/reconnect.dart' show Reconnect;
 export 'src/sasl.dart'

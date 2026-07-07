@@ -4,10 +4,13 @@ import 'package:xml/xml.dart';
 
 import 'connection.dart';
 import 'iq.dart';
+import 'iq_responder.dart';
 import 'jid.dart';
 import 'reconnect.dart';
 import 'stream_management.dart';
 import 'transport.dart';
+
+const _nsPing = 'urn:xmpp:ping';
 
 /// Builds a [Transport] for a host/port. Injectable so tests (and custom
 /// transports) can replace the default TCP socket.
@@ -53,6 +56,9 @@ class XmppClient {
   StreamManagement? _sm;
   XmppConnection? _conn;
   IqCaller? _iq;
+  IqResponder? _iqResponder;
+  final _iqGetHandlers = <(String, String, IqHandler)>[];
+  final _iqSetHandlers = <(String, String, IqHandler)>[];
   StreamSubscription<XmppState>? _stateSub;
   StreamSubscription<XmlElement>? _stanzaSub;
   bool _closing = false;
@@ -116,6 +122,15 @@ class XmppClient {
     _stanzaSub = conn.stanzas.listen(_stanzas.add);
     await _iq?.dispose();
     _iq = IqCaller(conn.stanzas, conn.send);
+    await _iqResponder?.dispose();
+    _iqResponder = IqResponder(conn.stanzas, conn.send)
+      ..get(_nsPing, 'ping', (_, _) => null); // XEP-0199 auto-reply
+    for (final (ns, name, h) in _iqGetHandlers) {
+      _iqResponder!.get(ns, name, h);
+    }
+    for (final (ns, name, h) in _iqSetHandlers) {
+      _iqResponder!.set(ns, name, h);
+    }
     await conn.connect();
   }
 
@@ -146,10 +161,25 @@ class XmppClient {
   Future<XmlElement> iq(XmlElement element) =>
       _iq?.request(element) ?? Future.error(StateError('not connected'));
 
+  /// Registers a handler for inbound `iq type="get"` with a child in [ns]
+  /// named [name]. Persists across reconnects. Register before [connect] (or
+  /// any time — it applies on the next connection too).
+  void onIqGet(String ns, String name, IqHandler handler) {
+    _iqGetHandlers.add((ns, name, handler));
+    _iqResponder?.get(ns, name, handler);
+  }
+
+  /// Registers a handler for inbound `iq type="set"`. See [onIqGet].
+  void onIqSet(String ns, String name, IqHandler handler) {
+    _iqSetHandlers.add((ns, name, handler));
+    _iqResponder?.set(ns, name, handler);
+  }
+
   Future<void> close() async {
     _closing = true;
     await _conn?.close();
     await _iq?.dispose();
+    await _iqResponder?.dispose();
     await _sm?.dispose();
     await _stateSub?.cancel();
     await _stanzaSub?.cancel();
