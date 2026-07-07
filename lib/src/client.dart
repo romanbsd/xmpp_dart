@@ -8,6 +8,7 @@ import 'iq.dart';
 import 'iq_responder.dart';
 import 'jid.dart';
 import 'reconnect.dart';
+import 'srv.dart';
 import 'stream_management.dart';
 import 'transport.dart';
 
@@ -37,7 +38,9 @@ typedef TransportFactory = Future<Transport> Function(
 /// await client.send(xml('presence'));
 /// ```
 class XmppClient {
-  final String host;
+  /// Explicit server host. If null, [domain] is resolved via DNS SRV
+  /// (`_xmpps-client`/`_xmpp-client`), falling back to `domain:5222` STARTTLS.
+  final String? host;
   final String domain;
   final String username;
   final String password;
@@ -50,6 +53,10 @@ class XmppClient {
   final Duration reconnectMax;
 
   final TransportFactory _transportFactory;
+
+  /// DNS SRV resolver used when [host] is null. Defaults to [DnsSrvResolver].
+  final SrvResolver? resolver;
+  late final SrvResolver _srv = resolver ?? DnsSrvResolver();
 
   final _states = StreamController<XmppState>.broadcast();
   final _stanzas = StreamController<XmlElement>.broadcast();
@@ -67,12 +74,13 @@ class XmppClient {
   bool _closing = false;
   bool _reconnecting = false;
   bool _abandoned = false;
+  bool _established = false;
 
   XmppClient({
-    required this.host,
     required this.domain,
     required this.username,
     required this.password,
+    this.host,
     this.port,
     this.tls = TlsMode.starttls,
     this.resource,
@@ -81,6 +89,7 @@ class XmppClient {
     this.reconnectBase = const Duration(seconds: 1),
     this.reconnectMax = const Duration(seconds: 60),
     TransportFactory? transportFactory,
+    this.resolver,
   }) : _transportFactory = transportFactory ?? _defaultTransport;
 
   static Future<Transport> _defaultTransport(
@@ -113,9 +122,42 @@ class XmppClient {
   }
 
   Future<void> _open() async {
-    final p = port ?? (tls == TlsMode.direct ? 5223 : 5222);
+    final candidates = await _candidates();
+    Object? lastError;
+    for (final (host, port, tls) in candidates) {
+      try {
+        await _openEndpoint(host, port, tls);
+        return;
+      } catch (e) {
+        lastError = e;
+        // Permanent failures (auth/TLS/protocol) won't be fixed by another
+        // SRV host; transient ones (refused/timeout) move to the next.
+        if (isPermanentError(e)) rethrow;
+      }
+    }
+    throw lastError ?? StateError('no XMPP endpoints for $domain');
+  }
+
+  /// Resolves the ordered list of `(host, port, tls)` candidates: the explicit
+  /// [host] if set, otherwise DNS SRV for [domain] (with a plaintext fallback).
+  Future<List<(String, int, TlsMode)>> _candidates() async {
+    if (host != null) {
+      final p = port ?? (tls == TlsMode.direct ? 5223 : 5222);
+      return [(host!, p, tls)];
+    }
+    final endpoints = await _srv.lookup(domain);
+    if (endpoints.isEmpty) {
+      return [(domain, port ?? 5222, TlsMode.starttls)];
+    }
+    return [
+      for (final e in endpoints)
+        (e.host, e.port, e.directTls ? TlsMode.direct : TlsMode.starttls),
+    ];
+  }
+
+  Future<void> _openEndpoint(String host, int port, TlsMode tls) async {
     final transport =
-        await _transportFactory(host, p, secure: tls == TlsMode.direct);
+        await _transportFactory(host, port, secure: tls == TlsMode.direct);
     final conn = XmppConnection(
       transport: transport,
       domain: domain,
@@ -148,12 +190,22 @@ class XmppClient {
 
   void _onState(XmppState s) {
     _states.add(s);
-    if (s == XmppState.disconnected &&
-        autoReconnect &&
-        !_closing &&
-        !_reconnecting &&
-        !_abandoned) {
-      unawaited(_reconnect());
+    if (s == XmppState.online) {
+      _established = true;
+      return;
+    }
+    if (s == XmppState.disconnected) {
+      // Only reconnect after losing an established session — not after a failed
+      // connect attempt (initial connect or a candidate we're iterating past).
+      final wasEstablished = _established;
+      _established = false;
+      if (wasEstablished &&
+          autoReconnect &&
+          !_closing &&
+          !_reconnecting &&
+          !_abandoned) {
+        unawaited(_reconnect());
+      }
     }
   }
 

@@ -4,6 +4,10 @@ A lightweight Dart port of [xmpp.js](https://github.com/xmppjs/xmpp.js) — TCP
 client only. Connects, secures (STARTTLS or direct TLS), authenticates
 (SASL PLAIN / SCRAM-SHA-1), binds a resource, and lets you send/receive stanzas.
 
+Resolves servers via DNS SRV (`_xmpps-client`/`_xmpp-client`) when `host` is
+omitted, trying candidates in priority/weight order with a plaintext fallback to
+`domain:5222`. Inject a custom `SrvResolver` (e.g. DNS-over-HTTPS) if needed.
+
 Supports XEP-0198 Stream Management: stanza acknowledgement, liveness `<r/>`
 checks, and session resumption (replays unacked stanzas after a reconnect) —
 opt in with `streamManagement: true, autoReconnect: true`.
@@ -18,12 +22,13 @@ import 'package:xmpp_dart/xmpp_dart.dart';
 import 'package:xml/xml.dart'; // XmlElement — stanzas and IQ responses
 
 final client = XmppClient(
-  host: 'example.com',
-  domain: 'example.com',
+  domain: 'example.com',       // host omitted -> DNS SRV resolves it
   username: 'alice',
   password: 'secret',
   tls: TlsMode.starttls,       // required STARTTLS; also .opportunistic / .direct (5223) / .none
 );
+// Or pin the server explicitly (skips SRV):
+//   host: 'xmpp.example.com', port: 5222, tls: TlsMode.starttls
 
 client.states.listen((s) => print('state: $s')); // XmppState enum
 
