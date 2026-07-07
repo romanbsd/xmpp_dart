@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:xmpp_dart/src/connection.dart';
-import 'package:xmpp_dart/src/sasl.dart';
+import 'package:xmpp_dart/src/errors.dart';
 
 import 'support/fake_transport.dart';
 
@@ -47,7 +47,7 @@ void main() {
     expect(auth, contains('AGFsaWNlAHNlY3JldA=='));
 
     // Auth succeeds; client restarts the stream.
-    t.deliver('<success/>');
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
 
     // New stream, no more SASL -> client binds a resource.
@@ -96,7 +96,7 @@ void main() {
     // Post-TLS stream restart -> features with PLAIN -> auth -> bind.
     t.deliver(_features(_plainMechs));
     await pump();
-    t.deliver('<success/>');
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t.deliver(_features(''));
     await pump();
@@ -157,7 +157,7 @@ void main() {
     await pump();
     t.deliver(_features(_plainMechs));
     await pump();
-    t.deliver('<success/>');
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t.deliver(_features(''));
     await pump();

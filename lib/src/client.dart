@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:xml/xml.dart';
 
 import 'connection.dart';
+import 'errors.dart';
 import 'iq.dart';
 import 'iq_responder.dart';
 import 'jid.dart';
@@ -52,6 +53,7 @@ class XmppClient {
 
   final _states = StreamController<XmppState>.broadcast();
   final _stanzas = StreamController<XmlElement>.broadcast();
+  final _errors = StreamController<Object>.broadcast();
 
   StreamManagement? _sm;
   XmppConnection? _conn;
@@ -61,8 +63,10 @@ class XmppClient {
   final _iqSetHandlers = <(String, String, IqHandler)>[];
   StreamSubscription<XmppState>? _stateSub;
   StreamSubscription<XmlElement>? _stanzaSub;
+  StreamSubscription<Object>? _errorSub;
   bool _closing = false;
   bool _reconnecting = false;
+  bool _abandoned = false;
 
   XmppClient({
     required this.host,
@@ -89,6 +93,11 @@ class XmppClient {
   Stream<XmppState> get states => _states.stream;
   Stream<XmlElement> get stanzas => _stanzas.stream;
 
+  /// Structured diagnostics: stream errors, SM violations, parse failures
+  /// (while online), and [ReconnectException] when auto-reconnect gives up on a
+  /// permanent failure. Inspect `isPermanent` on [XmppException]s to classify.
+  Stream<Object> get errors => _errors.stream;
+
   /// The acknowledged-stanza stream (XEP-0198), when Stream Management is on.
   Stream<XmlElement> get acks =>
       _sm?.acks ?? const Stream<XmlElement>.empty();
@@ -98,6 +107,7 @@ class XmppClient {
   /// Opens the connection and completes once online. A failure here surfaces to
   /// the caller; only drops *after* a successful connect trigger auto-reconnect.
   Future<void> connect() async {
+    _abandoned = false;
     if (streamManagement) _sm ??= StreamManagement();
     await _open();
   }
@@ -118,8 +128,10 @@ class XmppClient {
     _conn = conn;
     await _stateSub?.cancel();
     await _stanzaSub?.cancel();
+    await _errorSub?.cancel();
     _stateSub = conn.states.listen(_onState);
     _stanzaSub = conn.stanzas.listen(_stanzas.add);
+    _errorSub = conn.errors.listen(_errors.add);
     await _iq?.dispose();
     _iq = IqCaller(conn.stanzas, conn.send);
     await _iqResponder?.dispose();
@@ -139,7 +151,8 @@ class XmppClient {
     if (s == XmppState.disconnected &&
         autoReconnect &&
         !_closing &&
-        !_reconnecting) {
+        !_reconnecting &&
+        !_abandoned) {
       unawaited(_reconnect());
     }
   }
@@ -148,6 +161,11 @@ class XmppClient {
     _reconnecting = true;
     try {
       await Reconnect(_open, base: reconnectBase, max: reconnectMax).run();
+    } catch (e) {
+      // Permanent failure (auth/TLS/protocol) or retries exhausted: stop
+      // auto-reconnecting until the user calls connect() again.
+      _abandoned = true;
+      _errors.add(e is ReconnectException ? e : ReconnectException(e));
     } finally {
       _reconnecting = false;
     }
@@ -183,7 +201,9 @@ class XmppClient {
     await _sm?.dispose();
     await _stateSub?.cancel();
     await _stanzaSub?.cancel();
+    await _errorSub?.cancel();
     await _states.close();
     await _stanzas.close();
+    await _errors.close();
   }
 }

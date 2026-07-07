@@ -76,5 +76,15 @@ void main() {
       p.feed('</stream:stream>');
       expect(closed, 1);
     });
+
+    test('surfaces malformed input on errors stream instead of throwing', () {
+      final errors = <Object>[];
+      p.errors.listen(errors.add);
+      p.feed("<stream:stream id='c1'>");
+      // Mismatched close tag: assembling the stanza fails, but feed() must not
+      // throw — the error is routed to the errors stream.
+      expect(() => p.feed('<message></wrong>'), returnsNormally);
+      expect(errors, isNotEmpty);
+    });
   });
 }

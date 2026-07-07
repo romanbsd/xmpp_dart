@@ -3,7 +3,7 @@ import 'package:xmpp_dart/src/connection.dart';
 import 'package:xmpp_dart/src/stream_management.dart';
 import 'package:xmpp_dart/src/transport.dart';
 import 'package:xmpp_dart/src/xml.dart';
-import 'package:xmpp_dart/xmpp_dart.dart' show XmppClient;
+import 'package:xmpp_dart/xmpp_dart.dart' show ReconnectException, XmppClient;
 
 import 'support/fake_transport.dart';
 
@@ -48,7 +48,7 @@ void main() {
     final t1 = transports[0];
     t1.deliver(_features(_plain));
     await pump();
-    t1.deliver('<success/>');
+    t1.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t1.deliver(_features("<sm xmlns='$_sm'/>"));
     await pump();
@@ -73,7 +73,7 @@ void main() {
     // Re-auth, then resume instead of bind.
     t2.deliver(_features(_plain));
     await pump();
-    t2.deliver('<success/>');
+    t2.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t2.deliver(_features(''));
     await pump();
@@ -113,7 +113,7 @@ void main() {
     final t = transports[0];
     t.deliver(_features(_plain));
     await pump();
-    t.deliver('<success/>');
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t.deliver(_features(''));
     await pump();
@@ -129,6 +129,61 @@ void main() {
         t.writes.any((w) =>
             w.contains('type="result"') && w.contains('id="p1"')),
         isTrue);
+
+    await client.close();
+  });
+
+  test('permanent failure on reconnect surfaces as ReconnectException',
+      () async {
+    final transports = <FakeTransport>[];
+    Future<Transport> factory(String host, int port, {bool secure = false}) async {
+      final t = FakeTransport();
+      transports.add(t);
+      return t;
+    }
+
+    final client = XmppClient(
+      host: 'ex',
+      domain: 'ex',
+      username: 'alice',
+      password: 'secret',
+      tls: TlsMode.none,
+      streamManagement: true,
+      autoReconnect: true,
+      reconnectBase: const Duration(milliseconds: 1),
+      transportFactory: factory,
+    );
+    final errors = <Object>[];
+    client.errors.listen(errors.add);
+
+    final fut = client.connect();
+    await pump();
+    final t1 = transports[0];
+    t1.deliver(_features(_plain));
+    await pump();
+    t1.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
+    await pump();
+    t1.deliver(_features("<sm xmlns='$_sm'/>"));
+    await pump();
+    t1.deliver(_bindResult);
+    await pump();
+    t1.deliver("<enabled xmlns='$_sm' id='sess1' resume='true'/>");
+    await fut;
+    await pump();
+
+    t1.drop();
+    await pump();
+
+    // On reconnect the server rejects auth -> permanent -> no more retries.
+    final t2 = transports[1];
+    t2.deliver(_features(_plain));
+    await pump();
+    t2.deliver("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+        '<not-authorized/></failure>');
+    await pump(16); // auth-fail -> teardown -> Reconnect give-up -> emit
+
+    expect(errors.whereType<ReconnectException>(), isNotEmpty);
+    expect(transports.length, 2); // did not keep retrying
 
     await client.close();
   });
@@ -157,7 +212,7 @@ void main() {
     final t1 = transports[0];
     t1.deliver(_features(_plain));
     await pump();
-    t1.deliver('<success/>');
+    t1.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t1.deliver(_features("<sm xmlns='$_sm'/>"));
     await pump();

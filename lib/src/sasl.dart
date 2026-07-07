@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
+import 'errors.dart';
+
 /// A SASL mechanism. Values passed in/out are the *decoded* SASL payloads;
 /// the connection handles base64 on the wire.
 abstract class SaslMechanism {
@@ -16,13 +18,6 @@ abstract class SaslMechanism {
 
   /// Verifies the decoded `<success>` payload (if any). Throws on mismatch.
   void onSuccess(String? data) {}
-}
-
-class SaslException implements Exception {
-  final String message;
-  SaslException(this.message);
-  @override
-  String toString() => 'SaslException: $message';
 }
 
 /// SASL PLAIN (RFC 4616): `\0username\0password`, base64-encoded by the caller.

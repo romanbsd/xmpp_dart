@@ -1,6 +1,13 @@
 /// An XMPP address: `local@domain/resource`. Only [domain] is required.
 ///
 /// This is a value type — two JIDs with the same parts are equal.
+///
+/// NOTE: parsing is intentionally minimal — it splits on `@` and `/` only. It
+/// does NOT perform RFC 7622 preparation/normalization (PRECIS/stringprep),
+/// XEP-0106 JID escaping, or validation of length/allowed characters. Two JIDs
+/// that a compliant server considers equal (e.g. differing only by case or
+/// Unicode normalization) may compare unequal here. Callers that mix
+/// user-supplied JIDs into security decisions should normalize upstream.
 class Jid {
   final String? local;
   final String domain;

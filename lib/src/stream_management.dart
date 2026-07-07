@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:xml/xml.dart';
 
+import 'errors.dart';
 import 'jid.dart';
 import 'xml.dart';
 
@@ -69,9 +70,20 @@ class StreamManagement {
 
   /// Processes an `<a h=.../>`: acknowledges (and drops) that many queued
   /// stanzas from the front, emitting each on [acks].
+  ///
+  /// Throws [StreamManagementException] if the counter regresses or exceeds
+  /// what we actually sent (a protocol violation).
   void handleAck(int h) {
-    final n = h - outbound;
-    for (var i = 0; i < n && outboundQueue.isNotEmpty; i++) {
+    final sent = outbound + outboundQueue.length;
+    if (h < outbound) {
+      throw StreamManagementException(
+          'ack counter regressed: h=$h < acked=$outbound');
+    }
+    if (h > sent) {
+      throw StreamManagementException(
+          'ack counter exceeds sent stanzas: h=$h > $sent');
+    }
+    for (var n = h - outbound; n > 0; n--) {
       _acks.add(outboundQueue.removeAt(0));
     }
     outbound = h;
@@ -93,7 +105,11 @@ class StreamManagement {
   /// Applies a `<resumed h=.../>`: acknowledges what the server received and
   /// returns the still-unacked stanzas for the connection to resend.
   List<XmlElement> onResumed(XmlElement el) {
-    handleAck(int.parse(el.getAttribute('h')!));
+    final h = int.tryParse(el.getAttribute('h') ?? '');
+    if (h == null) {
+      throw StreamManagementException('<resumed/> missing or invalid h');
+    }
+    handleAck(h);
     enabled = true;
     return List<XmlElement>.of(outboundQueue);
   }

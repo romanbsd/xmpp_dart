@@ -4,6 +4,8 @@ import 'dart:convert' show ChunkedConversionSink;
 import 'package:xml/xml.dart';
 import 'package:xml/xml_events.dart';
 
+import 'errors.dart';
+
 /// Builds an [XmlElement] concisely: `xml('message', attrs: {...}, text: 'hi')`.
 XmlElement xml(
   String name, {
@@ -41,10 +43,15 @@ class XmlStreamParser {
   final _open = StreamController<XmlElement>.broadcast(sync: true);
   final _stanzas = StreamController<XmlElement>.broadcast(sync: true);
   final _close = StreamController<void>.broadcast(sync: true);
+  final _errors = StreamController<Object>.broadcast(sync: true);
 
   Stream<XmlElement> get streamOpen => _open.stream;
   Stream<XmlElement> get stanzas => _stanzas.stream;
   Stream<void> get streamClose => _close.stream;
+
+  /// Malformed input surfaces here as [XmlParseException] instead of throwing
+  /// asynchronously out of [feed].
+  Stream<Object> get errors => _errors.stream;
 
   late ChunkedConversionSink<String> _sink;
   int _depth = 0;
@@ -61,7 +68,13 @@ class XmlStreamParser {
     _sink = XmlEventDecoder().startChunkedConversion(_EventSink(_onEvents));
   }
 
-  void feed(String chunk) => _sink.add(chunk);
+  void feed(String chunk) {
+    try {
+      _sink.add(chunk);
+    } catch (e) {
+      _errors.add(XmlParseException('malformed XML: $e'));
+    }
+  }
 
   void _onEvents(List<XmlEvent> events) {
     for (final e in events) {
@@ -117,6 +130,7 @@ class XmlStreamParser {
     unawaited(_open.close());
     unawaited(_stanzas.close());
     unawaited(_close.close());
+    unawaited(_errors.close());
   }
 }
 

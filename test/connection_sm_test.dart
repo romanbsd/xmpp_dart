@@ -35,7 +35,7 @@ Future<void> _login(FakeTransport t, {bool smFeature = true}) async {
   await pump();
   t.deliver(_features(_plain));
   await pump();
-  t.deliver('<success/>');
+  t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
   await pump();
   t.deliver(_features(smFeature ? "<sm xmlns='$_sm'/>" : ''));
   await pump();
@@ -121,7 +121,7 @@ void main() {
     await pump();
     t.deliver(_features(_plain));
     await pump();
-    t.deliver('<success/>');
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t.deliver(_features('')); // resumable -> client sends <resume>
     await pump();
@@ -155,7 +155,7 @@ void main() {
     await pump();
     t.deliver(_features(_plain));
     await pump();
-    t.deliver('<success/>');
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
     await pump();
     t.deliver(_features(''));
     await pump();

@@ -22,7 +22,7 @@ final client = XmppClient(
   domain: 'example.com',
   username: 'alice',
   password: 'secret',
-  tls: TlsMode.starttls,       // TlsMode.direct (port 5223) | TlsMode.none
+  tls: TlsMode.starttls,       // required STARTTLS; also .opportunistic / .direct (5223) / .none
 );
 
 client.states.listen((s) => print('state: $s')); // XmppState enum
@@ -88,9 +88,9 @@ XmppClient
 ```
 
 Use **`XmppClient`** for normal apps. Use **`XmppConnection`** directly when you
-need a custom `Transport` (tests, proxies) or access to `errors` / `userClosed`.
-`XmppClient` does not expose `XmppConnection.errors` — only `states` and
-`stanzas`.
+need a custom `Transport` (tests, proxies). `XmppClient` exposes `states`,
+`stanzas`, `acks`, and `errors` — the last carries typed [`XmppException`]s
+(with `isPermanent`) plus `ReconnectException` when auto-reconnect gives up.
 
 ### `XmppClient`
 
@@ -171,7 +171,8 @@ await conn.close();
 
 | Value | Port default | Behavior |
 |-------|--------------|----------|
-| `TlsMode.starttls` | 5222 | plaintext socket, upgrade via `<starttls>` |
+| `TlsMode.starttls` | 5222 | plaintext socket, **require** `<starttls>` upgrade (fails if the server doesn't offer it) |
+| `TlsMode.opportunistic` | 5222 | upgrade via `<starttls>` if offered, else continue plaintext |
 | `TlsMode.direct` | 5223 | `SecureSocket.connect` immediately |
 | `TlsMode.none` | 5222 | no TLS (testing only) |
 
