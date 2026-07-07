@@ -5,6 +5,7 @@ import 'package:xml/xml.dart';
 
 import 'jid.dart';
 import 'sasl.dart';
+import 'stream_management.dart';
 import 'transport.dart';
 import 'xml.dart';
 
@@ -50,6 +51,18 @@ class XmppConnection {
   final String? resource;
   final Duration timeout;
 
+  /// XEP-0198 state, shared across reconnects for session resumption. Null
+  /// disables Stream Management.
+  final StreamManagement? sm;
+
+  /// How often to send a liveness `<r/>` once SM is enabled. Null disables the
+  /// periodic check (per-stanza acks still flow).
+  final Duration? ackInterval;
+
+  /// If a liveness `<r/>` goes unanswered this long, the connection is dropped
+  /// (which triggers a resume attempt via the reconnect layer).
+  final Duration ackTimeout;
+
   Jid? jid;
 
   final _states = StreamController<XmppState>.broadcast();
@@ -60,6 +73,8 @@ class XmppConnection {
 
   XmppState _state = XmppState.offline;
   bool _online = false;
+  Timer? _ackTimer;
+  Timer? _ackTimeoutTimer;
 
   /// True once [close] was called by the user (vs. an unexpected drop).
   /// Auto-reconnect logic uses this to decide whether to retry.
@@ -73,6 +88,9 @@ class XmppConnection {
     this.tls = TlsMode.starttls,
     this.resource,
     this.timeout = const Duration(seconds: 10),
+    this.sm,
+    this.ackInterval = const Duration(seconds: 30),
+    this.ackTimeout = const Duration(seconds: 20),
   });
 
   Stream<XmppState> get states => _states.stream;
@@ -90,15 +108,26 @@ class XmppConnection {
     return jid!;
   }
 
-  Future<void> send(XmlElement element) async =>
-      transport.write(element.toXmlString());
+  Future<void> send(XmlElement element) async {
+    transport.write(element.toXmlString());
+    if (sm != null && sm!.enabled && StreamManagement.isStanza(element)) {
+      sm!.trackOutbound(element);
+      // Prompt the server to acknowledge what it has received so far.
+      transport.write(sm!.requestElement().toXmlString());
+    }
+  }
 
   Future<void> close() async {
     userClosed = true;
+    _cancelAckTimers();
     _setState(XmppState.closing);
     try {
+      if (sm != null && sm!.enabled) {
+        transport.write(sm!.ackElement().toXmlString());
+      }
       transport.write('</stream:stream>');
     } catch (_) {}
+    sm?.onDisconnect();
     await transport.close();
     _setState(XmppState.disconnected);
   }
@@ -133,12 +162,57 @@ class XmppConnection {
         continue;
       }
 
+      // Resume a previous SM session if we have one.
+      if (sm != null && sm!.resumable && await _tryResume()) {
+        _goOnline();
+        return;
+      }
+
       _setState(XmppState.bound);
       await _bindResource();
-      _online = true;
-      _setState(XmppState.online);
+      await _tryEnableSm(features);
+      _goOnline();
       return;
     }
+  }
+
+  void _goOnline() {
+    _online = true;
+    _setState(XmppState.online);
+    _scheduleAckRequest();
+  }
+
+  /// Sends `<resume>` and handles the reply. Returns true if the session was
+  /// resumed (bind is then skipped); false if the server rejected it.
+  Future<bool> _tryResume() async {
+    transport.write(sm!.resumeElement().toXmlString());
+    final reply = await _read();
+    switch (reply.name.local) {
+      case 'resumed':
+        for (final stanza in sm!.onResumed(reply)) {
+          transport.write(stanza.toXmlString());
+        }
+        jid = sm!.jid;
+        return true;
+      case 'failed':
+        sm!.onFailedResume();
+        return false;
+      default:
+        throw XmppException('unexpected resume reply <${reply.name.local}>');
+    }
+  }
+
+  /// After binding, enables SM if the server advertised it. Failure is
+  /// non-fatal — the session simply runs without SM.
+  Future<void> _tryEnableSm(XmlElement features) async {
+    if (sm == null || _child(features, 'sm') == null) return;
+    transport.write(sm!.enableElement().toXmlString());
+    final reply = await _read();
+    if (reply.name.local == 'enabled') {
+      sm!.onEnabled(reply);
+      sm!.jid = jid;
+    }
+    // <failed> or anything else: leave SM disabled.
   }
 
   void _openStream() {
@@ -220,7 +294,24 @@ class XmppConnection {
       }
       return;
     }
+    // XEP-0198 flow control (only meaningful once online with SM enabled).
+    if (_online && sm != null && sm!.enabled &&
+        el.getAttribute('xmlns') == StreamManagement.ns) {
+      switch (el.name.local) {
+        case 'r':
+          transport.write(sm!.ackElement().toXmlString());
+          return;
+        case 'a':
+          final h = int.tryParse(el.getAttribute('h') ?? '');
+          if (h != null) sm!.handleAck(h);
+          _ackTimeoutTimer?.cancel();
+          _scheduleAckRequest();
+          return;
+      }
+    }
+
     if (_online) {
+      sm?.countInbound(el);
       _stanzas.add(el);
     } else {
       _inbox.add(el);
@@ -229,8 +320,27 @@ class XmppConnection {
 
   Future<XmlElement> _read() => _inbox.next(timeout);
 
+  // Periodically send <r/> and drop the connection if it goes unanswered, so
+  // the reconnect layer can resume the session.
+  void _scheduleAckRequest() {
+    if (sm == null || !sm!.enabled || ackInterval == null) return;
+    _ackTimer?.cancel();
+    _ackTimer = Timer(ackInterval!, () {
+      transport.write(sm!.requestElement().toXmlString());
+      _ackTimeoutTimer?.cancel();
+      _ackTimeoutTimer = Timer(ackTimeout, () => unawaited(transport.close()));
+    });
+  }
+
+  void _cancelAckTimers() {
+    _ackTimer?.cancel();
+    _ackTimeoutTimer?.cancel();
+  }
+
   void _onDisconnected() {
     _online = false;
+    _cancelAckTimers();
+    sm?.onDisconnect();
     if (_state != XmppState.disconnected) {
       _setState(XmppState.disconnected);
     }
