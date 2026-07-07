@@ -1,39 +1,53 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# xmpp_dart
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+A lightweight Dart port of [xmpp.js](https://github.com/xmppjs/xmpp.js) — TCP
+client only. Connects, secures (STARTTLS or direct TLS), authenticates
+(SASL PLAIN / SCRAM-SHA-1), binds a resource, and lets you send/receive stanzas.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/tools/pub/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
-
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
-
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+Not (yet) implemented: WebSocket transport, stream management, SCRAM-SHA-256,
+roster/presence helpers.
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
-
 ```dart
-const like = 'sample';
+import 'package:xmpp_dart/xmpp_dart.dart';
+
+final client = XmppClient(
+  host: 'example.com',
+  domain: 'example.com',
+  username: 'alice',
+  password: 'secret',
+  tls: TlsMode.starttls,       // TlsMode.direct (port 5223) | TlsMode.none
+);
+
+await client.connect();        // completes when online
+print('online as ${client.jid}');
+
+client.stanzas.listen((s) => print('recv: ${s.toXmlString()}'));
+
+await client.send(xml('presence'));
+await client.send(xml('message',
+    attrs: {'to': 'bob@example.com', 'type': 'chat'},
+    children: [xml('body', text: 'hi')]));
+
+// IQ request/response
+final roster = await client.iq(xml('iq', attrs: {'type': 'get'}, children: [
+  xml('query', attrs: {'xmlns': 'jabber:iq:roster'}),
+]));
+
+await client.close();
 ```
 
-## Additional information
+## Testing
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+```bash
+dart test                       # unit tests (no network)
+dart test --tags integration    # real server, needs XMPP_HOST/USER/PASS env vars
+```
+
+The `Transport` abstraction is the test seam: unit tests drive the full
+negotiation with a scripted in-memory transport, no sockets involved.
+
+## Design
+
+See [`docs/superpowers/specs/2026-07-07-xmpp-dart-tcp-client-design.md`](docs/superpowers/specs/2026-07-07-xmpp-dart-tcp-client-design.md).

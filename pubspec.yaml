@@ -1,14 +1,14 @@
 name: xmpp_dart
-description: A starting point for Dart libraries or applications.
-version: 1.0.0
+description: A lightweight Dart port of xmpp.js — TCP XMPP client.
+version: 0.1.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: ^3.12.2
 
-# Add regular dependencies here.
 dependencies:
-  # path: ^1.9.0
+  crypto: ^3.0.0
+  xml: ^7.0.1
 
 dev_dependencies:
   lints: ^6.0.0
