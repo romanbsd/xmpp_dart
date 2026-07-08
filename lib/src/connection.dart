@@ -33,16 +33,7 @@ enum TlsMode {
   direct,
 }
 
-enum XmppState {
-  offline,
-  connecting,
-  open,
-  authenticating,
-  bound,
-  online,
-  closing,
-  disconnected,
-}
+enum XmppState { offline, connecting, open, authenticating, bound, online, closing, disconnected }
 
 /// Drives one XMPP session over a [Transport]: opens the stream, negotiates
 /// features (STARTTLS, SASL, resource binding, XEP-0198) and reaches
@@ -112,9 +103,7 @@ class XmppConnection {
   /// On failure the transport, parser and listeners are torn down before the
   /// error is rethrown.
   Future<Jid> connect() async {
-    _byteSub = transport.incoming
-        .transform(utf8.decoder)
-        .listen(_parser.feed, onError: _onStreamError);
+    _byteSub = transport.incoming.transform(utf8.decoder).listen(_parser.feed, onError: _onStreamError);
     _stanzaSub = _parser.stanzas.listen(_onElement);
     _parserErrSub = _parser.errors.listen(_onStreamError);
     unawaited(transport.done.then((_) => _onDisconnected()));
@@ -178,16 +167,14 @@ class XmppConnection {
       _openStream();
       final features = await _read();
 
-      if (!secured &&
-          (tls == TlsMode.starttls || tls == TlsMode.opportunistic)) {
+      if (!secured && (tls == TlsMode.starttls || tls == TlsMode.opportunistic)) {
         if (_child(features, 'starttls', ns: _nsTls) != null) {
           await _startTls();
           secured = true;
           continue;
         }
         if (tls == TlsMode.starttls) {
-          throw TlsException(
-              'STARTTLS required but the server did not offer it');
+          throw TlsException('STARTTLS required but the server did not offer it');
         }
         // opportunistic: fall through, unencrypted.
       }
@@ -222,10 +209,8 @@ class XmppConnection {
   Future<void> _startTls() async {
     transport.write(xml('starttls', attrs: {'xmlns': _nsTls}).toXmlString());
     final proceed = await _read();
-    if (proceed.name.local != 'proceed' ||
-        proceed.getAttribute('xmlns') != _nsTls) {
-      throw NegotiationException(
-          'expected <proceed/>, got <${proceed.name.local}>');
+    if (proceed.name.local != 'proceed' || proceed.getAttribute('xmlns') != _nsTls) {
+      throw NegotiationException('expected <proceed/>, got <${proceed.name.local}>');
     }
     try {
       await transport.upgradeTls(domain);
@@ -240,8 +225,7 @@ class XmppConnection {
     transport.write(sm!.resumeElement().toXmlString());
     final reply = await _read();
     if (reply.getAttribute('xmlns') != StreamManagement.ns) {
-      throw NegotiationException(
-          'unexpected resume reply <${reply.name.local}>');
+      throw NegotiationException('unexpected resume reply <${reply.name.local}>');
     }
     switch (reply.name.local) {
       case 'resumed':
@@ -254,8 +238,7 @@ class XmppConnection {
         sm!.onFailedResume();
         return false;
       default:
-        throw NegotiationException(
-            'unexpected resume reply <${reply.name.local}>');
+        throw NegotiationException('unexpected resume reply <${reply.name.local}>');
     }
   }
 
@@ -267,8 +250,7 @@ class XmppConnection {
     }
     transport.write(sm!.enableElement().toXmlString());
     final reply = await _read();
-    if (reply.getAttribute('xmlns') == StreamManagement.ns &&
-        reply.name.local == 'enabled') {
+    if (reply.getAttribute('xmlns') == StreamManagement.ns && reply.name.local == 'enabled') {
       sm!.onEnabled(reply);
       sm!.jid = jid;
     }
@@ -277,18 +259,21 @@ class XmppConnection {
 
   void _openStream() {
     _parser.reset();
-    transport.write("<?xml version='1.0'?>"
-        "<stream:stream xmlns='$_nsClient' "
-        "xmlns:stream='$_nsStream' version='1.0' to='$domain'>");
+    transport.write(
+      "<?xml version='1.0'?>"
+      "<stream:stream xmlns='$_nsClient' "
+      "xmlns:stream='$_nsStream' version='1.0' to='$domain'>",
+    );
     _setState(XmppState.open);
   }
 
   Future<void> _authenticate(XmlElement features) async {
-    final offered = _child(features, 'mechanisms', ns: _nsSasl)
-            ?.childElements
-            .where((e) => e.name.local == 'mechanism')
-            .map((e) => e.innerText)
-            .toList() ??
+    final offered =
+        _child(
+          features,
+          'mechanisms',
+          ns: _nsSasl,
+        )?.childElements.where((e) => e.name.local == 'mechanism').map((e) => e.innerText).toList() ??
         const <String>[];
 
     final mech = selectMechanism(offered, username, password);
@@ -297,23 +282,23 @@ class XmppConnection {
     }
 
     final init = mech.initial();
-    transport.write(xml('auth', attrs: {
-      'xmlns': _nsSasl,
-      'mechanism': mech.name,
-    }, text: init == null ? null : _b64(init)).toXmlString());
+    transport.write(
+      xml(
+        'auth',
+        attrs: {'xmlns': _nsSasl, 'mechanism': mech.name},
+        text: init == null ? null : _b64(init),
+      ).toXmlString(),
+    );
 
     while (true) {
       final el = await _read();
       if (el.getAttribute('xmlns') != _nsSasl) {
-        throw NegotiationException(
-            'unexpected element during SASL: <${el.name.local}>');
+        throw NegotiationException('unexpected element during SASL: <${el.name.local}>');
       }
       switch (el.name.local) {
         case 'challenge':
           final resp = mech.response(_unb64(el.innerText));
-          transport.write(
-              xml('response', attrs: {'xmlns': _nsSasl}, text: _b64(resp))
-                  .toXmlString());
+          transport.write(xml('response', attrs: {'xmlns': _nsSasl}, text: _b64(resp)).toXmlString());
         case 'success':
           final data = el.innerText.trim();
           mech.onSuccess(data.isEmpty ? null : _unb64(data));
@@ -327,19 +312,18 @@ class XmppConnection {
   }
 
   Future<void> _bindResource() async {
-    final bind = xml('bind', attrs: {'xmlns': _nsBind}, children: [
-      if (resource != null) xml('resource', text: resource!),
-    ]);
-    transport.write(
-        xml('iq', attrs: {'type': 'set', 'id': 'bind'}, children: [bind])
-            .toXmlString());
+    final bind = xml(
+      'bind',
+      attrs: {'xmlns': _nsBind},
+      children: [if (resource != null) xml('resource', text: resource!)],
+    );
+    transport.write(xml('iq', attrs: {'type': 'set', 'id': 'bind'}, children: [bind]).toXmlString());
 
     final res = await _read();
     if (res.getAttribute('type') == 'error') {
       throw NegotiationException('resource binding failed: ${res.toXmlString()}');
     }
-    final jidText = _child(_child(res, 'bind', ns: _nsBind) ?? res, 'jid')
-        ?.innerText;
+    final jidText = _child(_child(res, 'bind', ns: _nsBind) ?? res, 'jid')?.innerText;
     if (jidText == null) {
       throw NegotiationException('bind result missing <jid>: ${res.toXmlString()}');
     }
@@ -350,9 +334,7 @@ class XmppConnection {
 
   void _onElement(XmlElement el) {
     if (el.name.qualified == 'stream:error') {
-      final condition = el.childElements.isEmpty
-          ? null
-          : el.childElements.first.name.local;
+      final condition = el.childElements.isEmpty ? null : el.childElements.first.name.local;
       final err = StreamErrorException(el.toXmlString(), condition: condition);
       if (_online) {
         _errors.add(err);
@@ -364,10 +346,7 @@ class XmppConnection {
     }
 
     // XEP-0198 flow control (only meaningful once online with SM enabled).
-    if (_online &&
-        sm != null &&
-        sm!.enabled &&
-        el.getAttribute('xmlns') == StreamManagement.ns) {
+    if (_online && sm != null && sm!.enabled && el.getAttribute('xmlns') == StreamManagement.ns) {
       switch (el.name.local) {
         case 'r':
           transport.write(sm!.ackElement().toXmlString());
@@ -400,8 +379,7 @@ class XmppConnection {
   /// Routes a byte/parse-level stream error to the negotiation waiter (before
   /// online) or the [errors] stream + teardown (after online).
   void _onStreamError(Object error, [StackTrace? stackTrace]) {
-    final err =
-        error is XmppException ? error : XmlParseException('$error');
+    final err = error is XmppException ? error : XmlParseException('$error');
     if (_online) {
       _errors.add(err);
       unawaited(close());
@@ -449,8 +427,7 @@ class XmppConnection {
 
   static XmlElement? _child(XmlElement parent, String local, {String? ns}) {
     for (final e in parent.childElements) {
-      if (e.name.local == local &&
-          (ns == null || e.getAttribute('xmlns') == ns)) {
+      if (e.name.local == local && (ns == null || e.getAttribute('xmlns') == ns)) {
         return e;
       }
     }

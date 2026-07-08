@@ -85,5 +85,4 @@ class ReconnectException extends XmppException {
 
 /// Classifier used by [Reconnect]: permanent errors abort the retry loop;
 /// everything else (timeouts, socket errors) is treated as transient.
-bool isPermanentError(Object error) =>
-    error is XmppException && error.isPermanent;
+bool isPermanentError(Object error) => error is XmppException && error.isPermanent;

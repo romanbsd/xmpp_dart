@@ -39,7 +39,7 @@ void main() {
   });
 
   test('empty result when handler returns null', () async {
-    r.get('urn:xmpp:ping', 'ping', (_, __) => null);
+    r.get('urn:xmpp:ping', 'ping', (_, _) => null);
     incoming.add(iqGet('urn:xmpp:ping', 'ping'));
     await pump();
     expect(sent.single.getAttribute('type'), 'result');
@@ -64,7 +64,7 @@ void main() {
 
   test('handler throwing IqError -> that condition', () async {
     r.get('urn:example', 'query',
-        (_, __) => throw IqError('forbidden', type: 'auth'));
+        (_, _) => throw IqError('forbidden', type: 'auth'));
     incoming.add(iqGet('urn:example', 'query'));
     await pump();
     final error = sent.single.getElement('error')!;
@@ -73,7 +73,7 @@ void main() {
   });
 
   test('handler throwing anything else -> internal-server-error', () async {
-    r.get('urn:example', 'query', (_, __) => throw StateError('boom'));
+    r.get('urn:example', 'query', (_, _) => throw StateError('boom'));
     incoming.add(iqGet('urn:example', 'query'));
     await pump();
     expect(
@@ -90,7 +90,7 @@ void main() {
 
   test('set routes separately from get', () async {
     var setHit = false;
-    r.set('urn:example', 'cmd', (_, __) {
+    r.set('urn:example', 'cmd', (_, _) {
       setHit = true;
       return null;
     });

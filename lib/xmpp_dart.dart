@@ -18,10 +18,8 @@ export 'src/iq.dart' show IqCaller, IqException;
 export 'src/iq_responder.dart' show IqError, IqHandler, IqResponder;
 export 'src/jid.dart' show Jid;
 export 'src/reconnect.dart' show Reconnect;
-export 'src/sasl.dart'
-    show PlainMechanism, SaslMechanism, ScramSha1Mechanism;
-export 'src/srv.dart'
-    show DnsSrvResolver, SrvRecord, SrvResolver, XmppEndpoint;
+export 'src/sasl.dart' show PlainMechanism, SaslMechanism, ScramSha1Mechanism;
+export 'src/srv.dart' show DnsSrvResolver, SrvRecord, SrvResolver, XmppEndpoint;
 export 'src/stream_management.dart' show StreamManagement;
 export 'src/transport.dart' show TcpTransport, Transport;
 export 'src/xml.dart' show XmlStreamParser, xml;

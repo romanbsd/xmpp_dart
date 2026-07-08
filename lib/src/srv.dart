@@ -14,17 +14,10 @@ class XmppEndpoint {
   final int priority;
   final int weight;
 
-  const XmppEndpoint(
-    this.host,
-    this.port, {
-    required this.directTls,
-    this.priority = 0,
-    this.weight = 0,
-  });
+  const XmppEndpoint(this.host, this.port, {required this.directTls, this.priority = 0, this.weight = 0});
 
   @override
-  String toString() =>
-      '${directTls ? 'xmpps' : 'xmpp'}://$host:$port (p$priority w$weight)';
+  String toString() => '${directTls ? 'xmpps' : 'xmpp'}://$host:$port (p$priority w$weight)';
 }
 
 /// Resolves an XMPP domain to an ordered list of connection candidates.
@@ -149,18 +142,12 @@ class DnsSrvResolver implements SrvResolver {
   final int port;
   final Duration timeout;
 
-  DnsSrvResolver({
-    String? nameserver,
-    this.port = 53,
-    this.timeout = const Duration(seconds: 5),
-  }) : nameserver = nameserver ?? _systemNameserver();
+  DnsSrvResolver({String? nameserver, this.port = 53, this.timeout = const Duration(seconds: 5)})
+    : nameserver = nameserver ?? _systemNameserver();
 
   @override
   Future<List<XmppEndpoint>> lookup(String domain) async {
-    final services = <(String, bool)>[
-      ('xmpps-client', true),
-      ('xmpp-client', false),
-    ];
+    final services = <(String, bool)>[('xmpps-client', true), ('xmpp-client', false)];
 
     final endpoints = <(SrvRecord, bool)>[];
     for (final (service, directTls) in services) {
@@ -173,8 +160,7 @@ class DnsSrvResolver implements SrvResolver {
     endpoints.sort((a, b) => compareSrv(a.$1, b.$1));
     return [
       for (final (r, directTls) in endpoints)
-        XmppEndpoint(r.target, r.port,
-            directTls: directTls, priority: r.priority, weight: r.weight),
+        XmppEndpoint(r.target, r.port, directTls: directTls, priority: r.priority, weight: r.weight),
     ];
   }
 

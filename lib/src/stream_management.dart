@@ -76,12 +76,10 @@ class StreamManagement {
   void handleAck(int h) {
     final sent = outbound + outboundQueue.length;
     if (h < outbound) {
-      throw StreamManagementException(
-          'ack counter regressed: h=$h < acked=$outbound');
+      throw StreamManagementException('ack counter regressed: h=$h < acked=$outbound');
     }
     if (h > sent) {
-      throw StreamManagementException(
-          'ack counter exceeds sent stanzas: h=$h > $sent');
+      throw StreamManagementException('ack counter exceeds sent stanzas: h=$h > $sent');
     }
     for (var n = h - outbound; n > 0; n--) {
       _acks.add(outboundQueue.removeAt(0));
@@ -130,14 +128,10 @@ class StreamManagement {
 
   // --- wire elements ---
 
-  XmlElement enableElement() => xml('enable', attrs: {
-        'xmlns': ns,
-        'resume': 'true',
-        if (preferredMax != null) 'max': '$preferredMax',
-      });
+  XmlElement enableElement() =>
+      xml('enable', attrs: {'xmlns': ns, 'resume': 'true', if (preferredMax != null) 'max': '$preferredMax'});
 
-  XmlElement resumeElement() =>
-      xml('resume', attrs: {'xmlns': ns, 'previd': id!, 'h': '$inbound'});
+  XmlElement resumeElement() => xml('resume', attrs: {'xmlns': ns, 'previd': id!, 'h': '$inbound'});
 
   XmlElement ackElement() => xml('a', attrs: {'xmlns': ns, 'h': '$inbound'});
 

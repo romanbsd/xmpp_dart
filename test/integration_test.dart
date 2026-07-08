@@ -22,7 +22,6 @@ void main() {
       domain: env['XMPP_DOMAIN'] ?? host,
       username: env['XMPP_USER']!,
       password: env['XMPP_PASS']!,
-      tls: TlsMode.starttls,
     );
     await client.connect();
     expect(client.jid, isNotNull);

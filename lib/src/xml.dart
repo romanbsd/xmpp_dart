@@ -7,22 +7,11 @@ import 'package:xml/xml_events.dart';
 import 'errors.dart';
 
 /// Builds an [XmlElement] concisely: `xml('message', attrs: {...}, text: 'hi')`.
-XmlElement xml(
-  String name, {
-  Map<String, String>? attrs,
-  List<XmlElement>? children,
-  String? text,
-}) {
+XmlElement xml(String name, {Map<String, String>? attrs, List<XmlElement>? children, String? text}) {
   return XmlElement(
     XmlName.parts(name),
-    [
-      for (final e in (attrs ?? const {}).entries)
-        XmlAttribute(XmlName.parts(e.key), e.value),
-    ],
-    [
-      if (text != null) XmlText(text),
-      ...?children,
-    ],
+    [for (final e in (attrs ?? const {}).entries) XmlAttribute(XmlName.parts(e.key), e.value)],
+    [if (text != null) XmlText(text), ...?children],
   );
 }
 
@@ -117,13 +106,11 @@ class XmlStreamParser {
     if (_depth >= 2) _buffer.add(e);
   }
 
-  XmlElement _build(List<XmlEvent> events) =>
-      const XmlNodeDecoder().convert(events).whereType<XmlElement>().first;
+  XmlElement _build(List<XmlEvent> events) => const XmlNodeDecoder().convert(events).whereType<XmlElement>().first;
 
-  XmlElement _fromStart(XmlStartElementEvent e) => XmlElement(
-        XmlName.qualified(e.name),
-        [for (final a in e.attributes) XmlAttribute(XmlName.qualified(a.name), a.value)],
-      );
+  XmlElement _fromStart(XmlStartElementEvent e) => XmlElement(XmlName.qualified(e.name), [
+    for (final a in e.attributes) XmlAttribute(XmlName.qualified(a.name), a.value),
+  ]);
 
   void close() {
     _sink.close();

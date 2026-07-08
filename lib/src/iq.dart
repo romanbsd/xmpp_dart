@@ -21,11 +21,7 @@ class IqCaller {
   int _seq = 0;
   bool _disposed = false;
 
-  IqCaller(
-    Stream<XmlElement> incoming,
-    this._send, {
-    this.timeout = const Duration(seconds: 30),
-  }) {
+  IqCaller(Stream<XmlElement> incoming, this._send, {this.timeout = const Duration(seconds: 30)}) {
     _sub = incoming.listen(_onStanza);
   }
 
@@ -54,10 +50,13 @@ class IqCaller {
       _pending.remove(id);
       return Future.error(e);
     }
-    return completer.future.timeout(timeout, onTimeout: () {
-      _pending.remove(id);
-      throw TimeoutException('IQ $id timed out');
-    });
+    return completer.future.timeout(
+      timeout,
+      onTimeout: () {
+        _pending.remove(id);
+        throw TimeoutException('IQ $id timed out');
+      },
+    );
   }
 
   void _onStanza(XmlElement el) {

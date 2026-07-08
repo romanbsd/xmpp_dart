@@ -34,15 +34,9 @@ class TcpTransport implements Transport {
 
   /// Opens a socket. [secure] uses direct TLS (e.g. port 5223); otherwise a
   /// plaintext socket that may later be upgraded with [upgradeTls].
-  static Future<TcpTransport> connect(
-    String host,
-    int port, {
-    bool secure = false,
-  }) async {
+  static Future<TcpTransport> connect(String host, int port, {bool secure = false}) async {
     // ignore: close_sinks -- socket lifetime owned by [TcpTransport.close].
-    final socket = secure
-        ? await SecureSocket.connect(host, port)
-        : await Socket.connect(host, port);
+    final socket = secure ? await SecureSocket.connect(host, port) : await Socket.connect(host, port);
     return TcpTransport._(socket);
   }
 

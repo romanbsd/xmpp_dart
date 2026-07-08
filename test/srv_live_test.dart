@@ -37,7 +37,7 @@ Future<RawDatagramSocket> _fakeDnsServer({int srvPort = 5222}) async {
 
 void main() {
   test('DnsSrvResolver queries a nameserver and returns endpoints', () async {
-    final dns = await _fakeDnsServer(srvPort: 5222);
+    final dns = await _fakeDnsServer();
     addTearDown(dns.close);
 
     final resolver = DnsSrvResolver(

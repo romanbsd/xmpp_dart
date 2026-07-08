@@ -16,11 +16,7 @@ const _nsPing = 'urn:xmpp:ping';
 
 /// Builds a [Transport] for a host/port. Injectable so tests (and custom
 /// transports) can replace the default TCP socket.
-typedef TransportFactory = Future<Transport> Function(
-  String host,
-  int port, {
-  bool secure,
-});
+typedef TransportFactory = Future<Transport> Function(String host, int port, {bool secure});
 
 /// High-level XMPP client over TCP. Constructs the transport, runs the
 /// connection state machine, and exposes stanza send/receive plus IQ calls.
@@ -92,11 +88,7 @@ class XmppClient {
     this.resolver,
   }) : _transportFactory = transportFactory ?? _defaultTransport;
 
-  static Future<Transport> _defaultTransport(
-    String host,
-    int port, {
-    bool secure = false,
-  }) =>
+  static Future<Transport> _defaultTransport(String host, int port, {bool secure = false}) =>
       TcpTransport.connect(host, port, secure: secure);
 
   Stream<XmppState> get states => _states.stream;
@@ -108,8 +100,7 @@ class XmppClient {
   Stream<Object> get errors => _errors.stream;
 
   /// The acknowledged-stanza stream (XEP-0198), when Stream Management is on.
-  Stream<XmlElement> get acks =>
-      _sm?.acks ?? const Stream<XmlElement>.empty();
+  Stream<XmlElement> get acks => _sm?.acks ?? const Stream<XmlElement>.empty();
 
   Jid? get jid => _conn?.jid;
 
@@ -149,15 +140,11 @@ class XmppClient {
     if (endpoints.isEmpty) {
       return [(domain, port ?? 5222, TlsMode.starttls)];
     }
-    return [
-      for (final e in endpoints)
-        (e.host, e.port, e.directTls ? TlsMode.direct : TlsMode.starttls),
-    ];
+    return [for (final e in endpoints) (e.host, e.port, e.directTls ? TlsMode.direct : TlsMode.starttls)];
   }
 
   Future<void> _openEndpoint(String host, int port, TlsMode tls) async {
-    final transport =
-        await _transportFactory(host, port, secure: tls == TlsMode.direct);
+    final transport = await _transportFactory(host, port, secure: tls == TlsMode.direct);
     final conn = XmppConnection(
       transport: transport,
       domain: domain,
@@ -177,8 +164,7 @@ class XmppClient {
     await _iq?.dispose();
     _iq = IqCaller(conn.stanzas, conn.send);
     await _iqResponder?.dispose();
-    _iqResponder = IqResponder(conn.stanzas, conn.send)
-      ..get(_nsPing, 'ping', (_, _) => null); // XEP-0199 auto-reply
+    _iqResponder = IqResponder(conn.stanzas, conn.send)..get(_nsPing, 'ping', (_, _) => null); // XEP-0199 auto-reply
     for (final (ns, name, h) in _iqGetHandlers) {
       _iqResponder!.get(ns, name, h);
     }
@@ -199,11 +185,7 @@ class XmppClient {
       // connect attempt (initial connect or a candidate we're iterating past).
       final wasEstablished = _established;
       _established = false;
-      if (wasEstablished &&
-          autoReconnect &&
-          !_closing &&
-          !_reconnecting &&
-          !_abandoned) {
+      if (wasEstablished && autoReconnect && !_closing && !_reconnecting && !_abandoned) {
         unawaited(_reconnect());
       }
     }
@@ -224,12 +206,10 @@ class XmppClient {
   }
 
   /// Sends a stanza.
-  Future<void> send(XmlElement element) =>
-      _conn?.send(element) ?? Future.error(StateError('not connected'));
+  Future<void> send(XmlElement element) => _conn?.send(element) ?? Future.error(StateError('not connected'));
 
   /// Sends an IQ and awaits its matching-`id` response.
-  Future<XmlElement> iq(XmlElement element) =>
-      _iq?.request(element) ?? Future.error(StateError('not connected'));
+  Future<XmlElement> iq(XmlElement element) => _iq?.request(element) ?? Future.error(StateError('not connected'));
 
   /// Registers a handler for inbound `iq type="get"` with a child in [ns]
   /// named [name]. Persists across reconnects. Register before [connect] (or

@@ -31,8 +31,8 @@ class Reconnect {
     bool Function(Object error)? retryIf,
     this.maxAttempts,
     Future<void> Function(Duration)? sleep,
-  })  : retryIf = retryIf ?? _defaultRetryIf,
-        _sleep = sleep ?? _realSleep;
+  }) : retryIf = retryIf ?? _defaultRetryIf,
+       _sleep = sleep ?? _realSleep;
 
   static bool _defaultRetryIf(Object error) => !isPermanentError(error);
   static Future<void> _realSleep(Duration d) => Future<void>.delayed(d);

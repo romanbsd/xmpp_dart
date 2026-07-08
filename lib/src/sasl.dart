@@ -33,8 +33,7 @@ class PlainMechanism extends SaslMechanism {
   String? initial() => '\u0000$username\u0000$password';
 
   @override
-  String response(String challenge) =>
-      throw SaslException('PLAIN expects no challenge');
+  String response(String challenge) => throw SaslException('PLAIN expects no challenge');
 }
 
 /// SASL SCRAM-SHA-1 (RFC 5802). [nonce] is injectable for deterministic tests.
@@ -47,8 +46,7 @@ class ScramSha1Mechanism extends SaslMechanism {
   String _serverFirst = '';
   List<int> _serverSignature = const [];
 
-  ScramSha1Mechanism(this.username, this.password, {String? nonce})
-      : _clientNonce = nonce ?? _randomNonce();
+  ScramSha1Mechanism(this.username, this.password, {String? nonce}) : _clientNonce = nonce ?? _randomNonce();
 
   @override
   String get name => 'SCRAM-SHA-1';
@@ -76,8 +74,7 @@ class ScramSha1Mechanism extends SaslMechanism {
 
     const channelBinding = 'c=biws'; // base64('n,,')
     final clientFinalNoProof = '$channelBinding,r=$combinedNonce';
-    final authMessage =
-        '$_clientFirstBare,$_serverFirst,$clientFinalNoProof';
+    final authMessage = '$_clientFirstBare,$_serverFirst,$clientFinalNoProof';
     final authBytes = utf8.encode(authMessage);
 
     final clientSignature = _hmac(storedKey, authBytes);
@@ -118,15 +115,12 @@ class ScramSha1Mechanism extends SaslMechanism {
     return result;
   }
 
-  static List<int> _hmac(List<int> key, List<int> data) =>
-      Hmac(sha1, key).convert(data).bytes;
+  static List<int> _hmac(List<int> key, List<int> data) => Hmac(sha1, key).convert(data).bytes;
 
-  static List<int> _xor(List<int> a, List<int> b) =>
-      [for (var i = 0; i < a.length; i++) a[i] ^ b[i]];
+  static List<int> _xor(List<int> a, List<int> b) => [for (var i = 0; i < a.length; i++) a[i] ^ b[i]];
 
   // RFC 5802: '=' and ',' in the username are escaped.
-  static String _saslName(String s) =>
-      s.replaceAll('=', '=3D').replaceAll(',', '=2C');
+  static String _saslName(String s) => s.replaceAll('=', '=3D').replaceAll(',', '=2C');
 
   static Map<String, String> _parse(String msg) {
     final map = <String, String>{};
@@ -139,11 +133,7 @@ class ScramSha1Mechanism extends SaslMechanism {
 }
 
 /// Picks the strongest supported mechanism from those the server advertises.
-SaslMechanism? selectMechanism(
-  List<String> offered,
-  String username,
-  String password,
-) {
+SaslMechanism? selectMechanism(List<String> offered, String username, String password) {
   if (offered.contains('SCRAM-SHA-1')) {
     return ScramSha1Mechanism(username, password);
   }

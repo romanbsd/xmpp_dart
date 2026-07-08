@@ -50,10 +50,7 @@ class Jid {
 
   @override
   bool operator ==(Object other) =>
-      other is Jid &&
-      other.local == local &&
-      other.domain == domain &&
-      other.resource == resource;
+      other is Jid && other.local == local && other.domain == domain && other.resource == resource;
 
   @override
   int get hashCode => Object.hash(local, domain, resource);

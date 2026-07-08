@@ -11,7 +11,6 @@ void main() {
         calls++;
         if (calls < 3) throw Exception('fail $calls');
       },
-      base: const Duration(seconds: 1),
       sleep: (d) async => delays.add(d),
     );
 
@@ -28,7 +27,6 @@ void main() {
   test('backoff caps at max', () {
     final r = Reconnect(
       () async {},
-      base: const Duration(seconds: 1),
       max: const Duration(seconds: 5),
     );
     expect(r.backoff(1), const Duration(seconds: 1));

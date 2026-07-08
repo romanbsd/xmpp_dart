@@ -64,3 +64,5 @@ linter:
     - use_setters_to_change_properties
     - use_string_buffers
     - use_to_and_as_if_applicable
+formatter:
+  page_width: 120

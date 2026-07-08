@@ -9,8 +9,7 @@ const _nsStanza = 'urn:ietf:params:xml:ns:xmpp-stanzas';
 /// Handles an inbound IQ `get`/`set`. Return the result payload child (or null
 /// for an empty `<iq type="result"/>`); throw [IqError] to reply with a stanza
 /// error.
-typedef IqHandler = FutureOr<XmlElement?> Function(
-    XmlElement iq, XmlElement child);
+typedef IqHandler = FutureOr<XmlElement?> Function(XmlElement iq, XmlElement child);
 
 /// A stanza error to return from an [IqHandler].
 class IqError implements Exception {
@@ -43,12 +42,10 @@ class IqResponder {
   }
 
   /// Registers a handler for `iq type="get"` with a child in [ns] named [name].
-  void get(String ns, String name, IqHandler handler) =>
-      _routes['get|$ns|$name'] = handler;
+  void get(String ns, String name, IqHandler handler) => _routes['get|$ns|$name'] = handler;
 
   /// Registers a handler for `iq type="set"` with a child in [ns] named [name].
-  void set(String ns, String name, IqHandler handler) =>
-      _routes['set|$ns|$name'] = handler;
+  void set(String ns, String name, IqHandler handler) => _routes['set|$ns|$name'] = handler;
 
   Future<void> _onStanza(XmlElement el) async {
     if (el.name.local != 'iq') return;
@@ -81,28 +78,21 @@ class IqResponder {
   XmlElement _reply(XmlElement query, String type, List<XmlElement> children) {
     final from = query.getAttribute('from');
     final id = query.getAttribute('id');
-    return xml('iq', attrs: {
-      'type': type,
-      'to': ?from,
-      'id': ?id,
-    }, children: children);
+    return xml('iq', attrs: {'type': type, 'to': ?from, 'id': ?id}, children: children);
   }
 
-  XmlElement _result(XmlElement query, XmlElement? payload) =>
-      _reply(query, 'result', [?payload]);
+  XmlElement _result(XmlElement query, XmlElement? payload) => _reply(query, 'result', [?payload]);
 
-  XmlElement _error(
-    XmlElement query,
-    XmlElement? child,
-    String type,
-    String condition,
-  ) =>
-      _reply(query, 'error', [
-        ?child?.copy(),
-        xml('error', attrs: {'type': type}, children: [
-          xml(condition, attrs: {'xmlns': _nsStanza}),
-        ]),
-      ]);
+  XmlElement _error(XmlElement query, XmlElement? child, String type, String condition) => _reply(query, 'error', [
+    ?child?.copy(),
+    xml(
+      'error',
+      attrs: {'type': type},
+      children: [
+        xml(condition, attrs: {'xmlns': _nsStanza}),
+      ],
+    ),
+  ]);
 
   Future<void> dispose() => _sub.cancel();
 }

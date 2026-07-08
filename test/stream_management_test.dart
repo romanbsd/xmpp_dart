@@ -8,8 +8,8 @@ void main() {
       xml('enabled', attrs: {
         'xmlns': StreamManagement.ns,
         'resume': resume,
-        if (id != null) 'id': id,
-        if (max != null) 'max': max,
+        'id': ?id,
+        'max': ?max,
       });
 
   test('onEnabled activates and resets counters', () {

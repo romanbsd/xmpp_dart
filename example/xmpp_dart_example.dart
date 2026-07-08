@@ -12,7 +12,6 @@ Future<void> main() async {
     domain: 'example.com',
     username: 'alice',
     password: 'secret',
-    tls: TlsMode.starttls,
   );
 
   client.states.listen((s) => print('state: $s'));
