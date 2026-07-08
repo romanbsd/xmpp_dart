@@ -10,9 +10,11 @@ void main() {
     });
 
     test('nested children', () {
-      final e = xml('message', attrs: {'to': 'a@b'}, children: [
-        xml('body', text: 'yo'),
-      ]);
+      final e = xml(
+        'message',
+        attrs: {'to': 'a@b'},
+        children: [xml('body', text: 'yo')],
+      );
       expect(e.getAttribute('to'), 'a@b');
       expect(e.getElement('body')!.innerText, 'yo');
     });
@@ -35,8 +37,10 @@ void main() {
     });
 
     test('emits stream open header then a stanza', () {
-      p.feed("<?xml version='1.0'?>"
-          "<stream:stream xmlns='jabber:client' id='c1' version='1.0'>");
+      p.feed(
+        "<?xml version='1.0'?>"
+        "<stream:stream xmlns='jabber:client' id='c1' version='1.0'>",
+      );
       p.feed('<message><body>hi</body></message>');
       expect(opens, ['c1']);
       expect(stanzas, ['<message><body>hi</body></message>']);

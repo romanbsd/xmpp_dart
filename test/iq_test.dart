@@ -13,8 +13,7 @@ void main() {
   setUp(() {
     incoming = StreamController<XmlElement>.broadcast();
     sent = [];
-    caller = IqCaller(incoming.stream, sent.add,
-        timeout: const Duration(milliseconds: 200));
+    caller = IqCaller(incoming.stream, sent.add, timeout: const Duration(milliseconds: 200));
   });
 
   test('assigns id and resolves on matching response', () async {

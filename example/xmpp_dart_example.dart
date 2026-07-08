@@ -7,12 +7,7 @@ import 'package:xmpp_dart/xmpp_dart.dart';
 ///
 /// Run: dart example/xmpp_dart_example.dart
 Future<void> main() async {
-  final client = XmppClient(
-    host: 'example.com',
-    domain: 'example.com',
-    username: 'alice',
-    password: 'secret',
-  );
+  final client = XmppClient(host: 'example.com', domain: 'example.com', username: 'alice', password: 'secret');
 
   client.states.listen((s) => print('state: $s'));
   client.stanzas.listen((s) => print('recv: ${s.toXmlString()}'));
@@ -22,9 +17,13 @@ Future<void> main() async {
 
   await client.send(xml('presence'));
 
-  await client.send(xml('message',
+  await client.send(
+    xml(
+      'message',
       attrs: {'to': 'bob@example.com', 'type': 'chat'},
-      children: [xml('body', text: 'hello from dart')]));
+      children: [xml('body', text: 'hello from dart')],
+    ),
+  );
 
   // Keep running to receive messages; Ctrl-C to quit.
   await Future<void>.delayed(const Duration(seconds: 30));

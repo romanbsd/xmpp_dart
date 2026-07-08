@@ -43,8 +43,7 @@ void main() {
       const exampleComPtrHi = 0xc0;
       const exampleComPtrLo = 30;
 
-      void answer(
-          int priority, int weight, int port, List<int> target) {
+      void answer(int priority, int weight, int port, List<int> target) {
         msg.add([0xc0, 0x0c]); // name -> question at offset 12
         msg.add([0x00, 33]); // type SRV
         msg.add([0x00, 1]); // class IN
@@ -58,17 +57,9 @@ void main() {
       }
 
       // Record A: target "xmpp1.example.com" fully spelled.
-      answer(10, 5, 5222, [
-        5, ...'xmpp1'.codeUnits,
-        7, ...'example'.codeUnits,
-        3, ...'com'.codeUnits,
-        0,
-      ]);
+      answer(10, 5, 5222, [5, ...'xmpp1'.codeUnits, 7, ...'example'.codeUnits, 3, ...'com'.codeUnits, 0]);
       // Record B: target "xmpp2" + pointer to "example.com".
-      answer(5, 20, 5269, [
-        5, ...'xmpp2'.codeUnits,
-        exampleComPtrHi, exampleComPtrLo,
-      ]);
+      answer(5, 20, 5269, [5, ...'xmpp2'.codeUnits, exampleComPtrHi, exampleComPtrLo]);
 
       return msg.toBytes();
     }
@@ -85,8 +76,7 @@ void main() {
     });
 
     test('empty on a too-short message', () {
-      expect(() => parseSrvResponse(Uint8List(4)),
-          throwsA(isA<FormatException>()));
+      expect(() => parseSrvResponse(Uint8List(4)), throwsA(isA<FormatException>()));
     });
   });
 
@@ -98,11 +88,8 @@ void main() {
 
   group('compareSrv', () {
     test('lower priority first, then higher weight', () {
-      final records = [
-        const SrvRecord(10, 5, 1, 'a'),
-        const SrvRecord(5, 10, 1, 'b'),
-        const SrvRecord(5, 30, 1, 'c'),
-      ]..sort(compareSrv);
+      final records = [const SrvRecord(10, 5, 1, 'a'), const SrvRecord(5, 10, 1, 'b'), const SrvRecord(5, 30, 1, 'c')]
+        ..sort(compareSrv);
       expect(records.map((r) => r.target), ['c', 'b', 'a']);
     });
   });

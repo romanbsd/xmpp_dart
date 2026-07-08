@@ -5,14 +5,16 @@ import 'package:xmpp_dart/xmpp_dart.dart' show XmppClient;
 
 import 'support/fake_transport.dart';
 
-const _header = "<stream:stream xmlns='jabber:client' "
+const _header =
+    "<stream:stream xmlns='jabber:client' "
     "xmlns:stream='http://etherx.jabber.org/streams' id='s1'>";
-String _features(String inner) =>
-    '$_header<stream:features>$inner</stream:features>';
-const _plain = "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+String _features(String inner) => '$_header<stream:features>$inner</stream:features>';
+const _plain =
+    "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
     '<mechanism>PLAIN</mechanism></mechanisms>';
 const _success = "<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>";
-const _bindResult = "<iq type='result' id='bind'>"
+const _bindResult =
+    "<iq type='result' id='bind'>"
     "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
     '<jid>alice@ex/res</jid></bind></iq>';
 
@@ -94,9 +96,11 @@ void main() {
     await pump();
 
     // Online: server redirects (IPv6 target with explicit port).
-    transports[0].deliver('<stream:error>'
-        "<see-other-host xmlns='urn:ietf:params:xml:ns:xmpp-streams'>"
-        '[2001:db8::1]:5300</see-other-host></stream:error>');
+    transports[0].deliver(
+      '<stream:error>'
+      "<see-other-host xmlns='urn:ietf:params:xml:ns:xmpp-streams'>"
+      '[2001:db8::1]:5300</see-other-host></stream:error>',
+    );
     await pump(12);
 
     expect(dialed.length, 2);

@@ -335,11 +335,8 @@ class XmppConnection {
   void _onElement(XmlElement el) {
     if (el.name.qualified == 'stream:error') {
       final condition = el.childElements.isEmpty ? null : el.childElements.first.name.local;
-      final seeOtherHost = condition == 'see-other-host'
-          ? el.childElements.first.innerText.trim()
-          : null;
-      final err = StreamErrorException(el.toXmlString(),
-          condition: condition, seeOtherHost: seeOtherHost);
+      final seeOtherHost = condition == 'see-other-host' ? el.childElements.first.innerText.trim() : null;
+      final err = StreamErrorException(el.toXmlString(), condition: condition, seeOtherHost: seeOtherHost);
       if (_online) {
         _errors.add(err);
         unawaited(close());

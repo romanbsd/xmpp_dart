@@ -7,28 +7,30 @@ import 'package:xmpp_dart/src/xml.dart';
 import 'support/fake_transport.dart';
 
 const _sm = StreamManagement.ns;
-const _header = "<stream:stream xmlns='jabber:client' "
+const _header =
+    "<stream:stream xmlns='jabber:client' "
     "xmlns:stream='http://etherx.jabber.org/streams' id='s1'>";
 
-String _features(String inner) =>
-    '$_header<stream:features>$inner</stream:features>';
+String _features(String inner) => '$_header<stream:features>$inner</stream:features>';
 
-const _plain = "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+const _plain =
+    "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
     '<mechanism>PLAIN</mechanism></mechanisms>';
 
-const _bindResult = "<iq type='result' id='bind'>"
+const _bindResult =
+    "<iq type='result' id='bind'>"
     "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
     '<jid>alice@ex/res</jid></bind></iq>';
 
 XmppConnection _conn(FakeTransport t, StreamManagement sm) => XmppConnection(
-      transport: t,
-      domain: 'ex',
-      username: 'alice',
-      password: 'secret',
-      tls: TlsMode.none,
-      sm: sm,
-      ackInterval: null, // no periodic timer in tests
-    );
+  transport: t,
+  domain: 'ex',
+  username: 'alice',
+  password: 'secret',
+  tls: TlsMode.none,
+  sm: sm,
+  ackInterval: null, // no periodic timer in tests
+);
 
 /// Drives a fresh login through to online with SM enabled.
 Future<void> _login(FakeTransport t, {bool smFeature = true}) async {
@@ -56,8 +58,7 @@ void main() {
     final jid = await fut;
     await pump();
 
-    expect(t.writes.any((w) => w.contains('<enable') && w.contains('resume="true"')),
-        isTrue);
+    expect(t.writes.any((w) => w.contains('<enable') && w.contains('resume="true"')), isTrue);
     expect(sm.enabled, isTrue);
     expect(sm.id, 'sess1');
     expect(sm.max, 600);
@@ -104,12 +105,10 @@ void main() {
     expect(sm.outboundQueue, isEmpty);
   });
 
-  test('resumes a previous session, skipping bind and resending queue',
-      () async {
+  test('resumes a previous session, skipping bind and resending queue', () async {
     // Simulate a prior enabled session with two unacked stanzas.
     final sm = StreamManagement()
-      ..onEnabled(xml('enabled',
-          attrs: {'xmlns': _sm, 'id': 'sess1', 'resume': 'true'}))
+      ..onEnabled(xml('enabled', attrs: {'xmlns': _sm, 'id': 'sess1', 'resume': 'true'}))
       ..jid = Jid.parse('alice@ex/res')
       ..trackOutbound(xml('message', attrs: {'id': 'a'}))
       ..trackOutbound(xml('message', attrs: {'id': 'b'}))
@@ -125,8 +124,7 @@ void main() {
     await pump();
     t.deliver(_features('')); // resumable -> client sends <resume>
     await pump();
-    expect(t.writes.any((w) => w.contains('<resume') && w.contains('previd="sess1"')),
-        isTrue);
+    expect(t.writes.any((w) => w.contains('<resume') && w.contains('previd="sess1"')), isTrue);
 
     // Server received 'a' but not 'b'.
     t.deliver("<resumed xmlns='$_sm' h='1'/>");
@@ -143,8 +141,7 @@ void main() {
 
   test('falls back to bind when resume fails', () async {
     final sm = StreamManagement()
-      ..onEnabled(xml('enabled',
-          attrs: {'xmlns': _sm, 'id': 'sess1', 'resume': 'true'}))
+      ..onEnabled(xml('enabled', attrs: {'xmlns': _sm, 'id': 'sess1', 'resume': 'true'}))
       ..jid = Jid.parse('alice@ex/old')
       ..trackOutbound(xml('message', attrs: {'id': 'a'}))
       ..onDisconnect();

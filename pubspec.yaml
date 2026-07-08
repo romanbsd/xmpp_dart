@@ -1,7 +1,16 @@
 name: xmpp_dart
-description: A lightweight Dart port of xmpp.js — TCP XMPP client.
+description: >-
+  A lightweight, dependency-minimal Dart XMPP client over TCP: STARTTLS/direct
+  TLS, SASL SCRAM-SHA-1/PLAIN, resource binding, IQ, XEP-0198 with resumption,
+  and DNS SRV.
 version: 0.1.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/romanbsd/xmpp_dart
+issue_tracker: https://github.com/romanbsd/xmpp_dart/issues
+topics:
+  - xmpp
+  - chat
+  - messaging
+  - networking
 
 environment:
   sdk: ^3.12.2

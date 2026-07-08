@@ -5,12 +5,7 @@ import 'package:xmpp_dart/src/xml.dart';
 
 void main() {
   XmlElement enabled({String? id, String resume = 'true', String? max}) =>
-      xml('enabled', attrs: {
-        'xmlns': StreamManagement.ns,
-        'resume': resume,
-        'id': ?id,
-        'max': ?max,
-      });
+      xml('enabled', attrs: {'xmlns': StreamManagement.ns, 'resume': resume, 'id': ?id, 'max': ?max});
 
   test('onEnabled activates and resets counters', () {
     final sm = StreamManagement();
@@ -76,9 +71,7 @@ void main() {
     sm.onDisconnect();
     expect(sm.enabled, isFalse);
 
-    final resend = sm.onResumed(
-      xml('resumed', attrs: {'xmlns': StreamManagement.ns, 'h': '1'}),
-    );
+    final resend = sm.onResumed(xml('resumed', attrs: {'xmlns': StreamManagement.ns, 'h': '1'}));
 
     expect(sm.enabled, isTrue);
     expect(sm.outbound, 1);

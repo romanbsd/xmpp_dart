@@ -1,0 +1,6 @@
+# Reference source (upstream xmpp.js, used only for development)
+xmpp.js/
+# Internal design docs
+docs/
+# Coverage output
+coverage/

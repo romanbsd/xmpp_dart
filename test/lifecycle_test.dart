@@ -23,38 +23,28 @@ void main() {
     });
 
     test('stream errors classify by condition', () {
-      expect(isPermanentError(StreamErrorException('x', condition: 'host-unknown')),
-          isTrue);
-      expect(
-          isPermanentError(
-              StreamErrorException('x', condition: 'system-shutdown')),
-          isFalse);
+      expect(isPermanentError(StreamErrorException('x', condition: 'host-unknown')), isTrue);
+      expect(isPermanentError(StreamErrorException('x', condition: 'system-shutdown')), isFalse);
     });
   });
 
   group('Reconnect policy', () {
     test('does not retry permanent failures', () async {
       var calls = 0;
-      final r = Reconnect(
-        () async {
-          calls++;
-          throw SaslException('bad creds');
-        },
-        sleep: (_) async {},
-      );
+      final r = Reconnect(() async {
+        calls++;
+        throw SaslException('bad creds');
+      }, sleep: (_) async {});
       await expectLater(r.run(), throwsA(isA<SaslException>()));
       expect(calls, 1);
     });
 
     test('retries transient failures then succeeds', () async {
       var calls = 0;
-      final r = Reconnect(
-        () async {
-          calls++;
-          if (calls < 3) throw TimeoutException('drop');
-        },
-        sleep: (_) async {},
-      );
+      final r = Reconnect(() async {
+        calls++;
+        if (calls < 3) throw TimeoutException('drop');
+      }, sleep: (_) async {});
       await r.run();
       expect(calls, 3);
     });
@@ -94,8 +84,7 @@ void main() {
       await caller.dispose();
     });
 
-    test('send failure removes the pending entry and errors the future',
-        () async {
+    test('send failure removes the pending entry and errors the future', () async {
       final incoming = StreamController<XmlElement>.broadcast();
       final caller = IqCaller(incoming.stream, (_) => throw StateError('down'));
       final fut = caller.request(xml('iq', attrs: {'type': 'get', 'id': 'z'}));
@@ -107,9 +96,9 @@ void main() {
   });
 
   group('StreamManagement counter validation', () {
-    StreamManagement enabled() => StreamManagement()
-      ..onEnabled(xml('enabled',
-          attrs: {'xmlns': StreamManagement.ns, 'id': 'x', 'resume': 'true'}));
+    StreamManagement enabled() =>
+        StreamManagement()
+          ..onEnabled(xml('enabled', attrs: {'xmlns': StreamManagement.ns, 'id': 'x', 'resume': 'true'}));
 
     test('ack regression throws', () {
       final sm = enabled();
@@ -128,8 +117,9 @@ void main() {
     test('resumed without h throws', () {
       final sm = enabled();
       expect(
-          () => sm.onResumed(xml('resumed', attrs: {'xmlns': StreamManagement.ns})),
-          throwsA(isA<StreamManagementException>()));
+        () => sm.onResumed(xml('resumed', attrs: {'xmlns': StreamManagement.ns})),
+        throwsA(isA<StreamManagementException>()),
+      );
     });
   });
 }

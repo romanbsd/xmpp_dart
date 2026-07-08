@@ -233,9 +233,7 @@ class XmppClient {
   /// Forwards connection errors to [errors], capturing an online
   /// `see-other-host` so the ensuing reconnect dials the new host.
   void _onConnError(Object e) {
-    if (e is StreamErrorException &&
-        e.seeOtherHost != null &&
-        _redirectCount < _maxRedirects) {
+    if (e is StreamErrorException && e.seeOtherHost != null && _redirectCount < _maxRedirects) {
       final target = _parseSeeOtherHost(e.seeOtherHost!, _currentTls);
       if (target != null) {
         _redirect = target;
@@ -256,9 +254,7 @@ class XmppClient {
       if (end < 0) return null;
       final host = s.substring(1, end);
       final rest = s.substring(end + 1);
-      final port = rest.startsWith(':')
-          ? int.tryParse(rest.substring(1)) ?? defaultPort
-          : defaultPort;
+      final port = rest.startsWith(':') ? int.tryParse(rest.substring(1)) ?? defaultPort : defaultPort;
       return (host, port, tls);
     }
     final colon = s.indexOf(':');

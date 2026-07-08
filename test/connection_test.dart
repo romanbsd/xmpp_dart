@@ -4,30 +4,25 @@ import 'package:xmpp_dart/src/errors.dart';
 
 import 'support/fake_transport.dart';
 
-const _streamHeader = "<stream:stream xmlns='jabber:client' "
+const _streamHeader =
+    "<stream:stream xmlns='jabber:client' "
     "xmlns:stream='http://etherx.jabber.org/streams' id='s1'>";
 
-String _features(String inner) =>
-    '$_streamHeader<stream:features>$inner</stream:features>';
+String _features(String inner) => '$_streamHeader<stream:features>$inner</stream:features>';
 
-const _plainMechs = "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+const _plainMechs =
+    "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
     '<mechanism>PLAIN</mechanism></mechanisms>';
 
-const _bindResult = "<iq type='result' id='bind'>"
+const _bindResult =
+    "<iq type='result' id='bind'>"
     "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
     '<jid>alice@ex/res</jid></bind></iq>';
 
 void main() {
-  test('full happy path: features -> PLAIN -> restart -> bind -> online',
-      () async {
+  test('full happy path: features -> PLAIN -> restart -> bind -> online', () async {
     final t = FakeTransport();
-    final conn = XmppConnection(
-      transport: t,
-      domain: 'ex',
-      username: 'alice',
-      password: 'secret',
-      tls: TlsMode.none,
-    );
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'secret', tls: TlsMode.none);
     final states = <XmppState>[];
     conn.states.listen(states.add);
 
@@ -63,29 +58,24 @@ void main() {
     expect(jid.toString(), 'alice@ex/res');
     expect(conn.state, XmppState.online);
     expect(
-        states,
-        containsAllInOrder([
-          XmppState.connecting,
-          XmppState.open,
-          XmppState.authenticating,
-          XmppState.bound,
-          XmppState.online,
-        ]));
+      states,
+      containsAllInOrder([
+        XmppState.connecting,
+        XmppState.open,
+        XmppState.authenticating,
+        XmppState.bound,
+        XmppState.online,
+      ]),
+    );
   });
 
   test('STARTTLS: upgrades then continues to auth', () async {
     final t = FakeTransport();
-    final conn = XmppConnection(
-      transport: t,
-      domain: 'ex',
-      username: 'alice',
-      password: 'secret',
-    );
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'secret');
     final fut = conn.connect();
     await pump();
 
-    t.deliver(_features(
-        "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'><required/></starttls>"));
+    t.deliver(_features("<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'><required/></starttls>"));
     await pump();
     expect(t.writes.any((w) => w.contains('<starttls')), isTrue);
 
@@ -108,32 +98,22 @@ void main() {
 
   test('SASL failure throws SaslException', () async {
     final t = FakeTransport();
-    final conn = XmppConnection(
-      transport: t,
-      domain: 'ex',
-      username: 'alice',
-      password: 'bad',
-      tls: TlsMode.none,
-    );
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'bad', tls: TlsMode.none);
     final fut = conn.connect();
     await pump();
     t.deliver(_features(_plainMechs));
     await pump();
-    t.deliver("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
-        '<not-authorized/></failure>');
+    t.deliver(
+      "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+      '<not-authorized/></failure>',
+    );
 
     await expectLater(fut, throwsA(isA<SaslException>()));
   });
 
   test('stream error during negotiation throws StreamErrorException', () async {
     final t = FakeTransport();
-    final conn = XmppConnection(
-      transport: t,
-      domain: 'ex',
-      username: 'alice',
-      password: 'secret',
-      tls: TlsMode.none,
-    );
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'secret', tls: TlsMode.none);
     final fut = conn.connect();
     await pump();
     t.deliver('$_streamHeader<stream:error><host-unknown/></stream:error>');
@@ -143,13 +123,7 @@ void main() {
 
   test('routes stanzas after online', () async {
     final t = FakeTransport();
-    final conn = XmppConnection(
-      transport: t,
-      domain: 'ex',
-      username: 'alice',
-      password: 'secret',
-      tls: TlsMode.none,
-    );
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'secret', tls: TlsMode.none);
     final stanzas = <String>[];
     conn.stanzas.listen((e) => stanzas.add(e.name.local));
 
@@ -167,6 +141,5 @@ void main() {
     t.deliver("<message from='bob@ex'><body>hi</body></message>");
     await pump();
     expect(stanzas, contains('message'));
-
   });
 }

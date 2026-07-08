@@ -6,29 +6,20 @@ void main() {
     var calls = 0;
     final delays = <Duration>[];
 
-    final r = Reconnect(
-      () async {
-        calls++;
-        if (calls < 3) throw Exception('fail $calls');
-      },
-      sleep: (d) async => delays.add(d),
-    );
+    final r = Reconnect(() async {
+      calls++;
+      if (calls < 3) throw Exception('fail $calls');
+    }, sleep: (d) async => delays.add(d));
 
     await r.run();
 
     expect(calls, 3); // 2 failures + 1 success
     expect(r.attempts, 2);
-    expect(delays, [
-      const Duration(seconds: 1),
-      const Duration(seconds: 2),
-    ]);
+    expect(delays, [const Duration(seconds: 1), const Duration(seconds: 2)]);
   });
 
   test('backoff caps at max', () {
-    final r = Reconnect(
-      () async {},
-      max: const Duration(seconds: 5),
-    );
+    final r = Reconnect(() async {}, max: const Duration(seconds: 5));
     expect(r.backoff(1), const Duration(seconds: 1));
     expect(r.backoff(2), const Duration(seconds: 2));
     expect(r.backoff(3), const Duration(seconds: 4));
@@ -38,13 +29,10 @@ void main() {
 
   test('stop() halts retries', () async {
     var calls = 0;
-    final r = Reconnect(
-      () async {
-        calls++;
-        throw Exception('always fails');
-      },
-      sleep: (d) async {},
-    );
+    final r = Reconnect(() async {
+      calls++;
+      throw Exception('always fails');
+    }, sleep: (d) async {});
 
     // Stop after the first failure.
     r.stop();

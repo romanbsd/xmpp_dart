@@ -40,11 +40,7 @@ void main() {
     final dns = await _fakeDnsServer();
     addTearDown(dns.close);
 
-    final resolver = DnsSrvResolver(
-      nameserver: '127.0.0.1',
-      port: dns.port,
-      timeout: const Duration(seconds: 2),
-    );
+    final resolver = DnsSrvResolver(nameserver: '127.0.0.1', port: dns.port, timeout: const Duration(seconds: 2));
     final endpoints = await resolver.lookup('example.com');
 
     // One record per service query (_xmpps-client + _xmpp-client).
@@ -55,8 +51,7 @@ void main() {
     expect(endpoints.first.port, 5222);
   });
 
-  test('DnsSrvResolver returns empty when the nameserver is unreachable',
-      () async {
+  test('DnsSrvResolver returns empty when the nameserver is unreachable', () async {
     // Nothing listening on this port -> query times out -> [].
     final resolver = DnsSrvResolver(
       nameserver: '127.0.0.1',

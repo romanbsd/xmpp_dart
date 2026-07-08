@@ -18,10 +18,13 @@ void main() {
     r = IqResponder(incoming.stream, sent.add);
   });
 
-  XmlElement iqGet(String ns, String name,
-          {String from = 'server', String id = 'q1'}) =>
-      xml('iq', attrs: {'type': 'get', 'from': from, 'id': id},
-          children: [xml(name, attrs: {'xmlns': ns})]);
+  XmlElement iqGet(String ns, String name, {String from = 'server', String id = 'q1'}) => xml(
+    'iq',
+    attrs: {'type': 'get', 'from': from, 'id': id},
+    children: [
+      xml(name, attrs: {'xmlns': ns}),
+    ],
+  );
 
   test('routed handler returns a result with from/to/id swapped', () async {
     r.get('urn:example', 'query', (iq, child) {
@@ -51,20 +54,17 @@ void main() {
     await pump();
     final err = sent.single;
     expect(err.getAttribute('type'), 'error');
-    expect(err.getElement('error')!.getElement('service-unavailable'),
-        isNotNull);
+    expect(err.getElement('error')!.getElement('service-unavailable'), isNotNull);
   });
 
   test('malformed query (no single child) -> bad-request', () async {
     incoming.add(xml('iq', attrs: {'type': 'get', 'from': 's', 'id': '2'}));
     await pump();
-    expect(sent.single.getElement('error')!.getElement('bad-request'),
-        isNotNull);
+    expect(sent.single.getElement('error')!.getElement('bad-request'), isNotNull);
   });
 
   test('handler throwing IqError -> that condition', () async {
-    r.get('urn:example', 'query',
-        (_, _) => throw IqError('forbidden', type: 'auth'));
+    r.get('urn:example', 'query', (_, _) => throw IqError('forbidden', type: 'auth'));
     incoming.add(iqGet('urn:example', 'query'));
     await pump();
     final error = sent.single.getElement('error')!;
@@ -76,9 +76,7 @@ void main() {
     r.get('urn:example', 'query', (_, _) => throw StateError('boom'));
     incoming.add(iqGet('urn:example', 'query'));
     await pump();
-    expect(
-        sent.single.getElement('error')!.getElement('internal-server-error'),
-        isNotNull);
+    expect(sent.single.getElement('error')!.getElement('internal-server-error'), isNotNull);
   });
 
   test('ignores iq result/error stanzas', () async {
@@ -94,8 +92,15 @@ void main() {
       setHit = true;
       return null;
     });
-    incoming.add(xml('iq', attrs: {'type': 'set', 'from': 's', 'id': '9'},
-        children: [xml('cmd', attrs: {'xmlns': 'urn:example'})]));
+    incoming.add(
+      xml(
+        'iq',
+        attrs: {'type': 'set', 'from': 's', 'id': '9'},
+        children: [
+          xml('cmd', attrs: {'xmlns': 'urn:example'}),
+        ],
+      ),
+    );
     await pump();
     expect(setHit, isTrue);
     expect(sent.single.getAttribute('type'), 'result');

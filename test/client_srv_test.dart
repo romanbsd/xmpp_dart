@@ -5,15 +5,17 @@ import 'package:xmpp_dart/xmpp_dart.dart' show SaslException, XmppClient;
 
 import 'support/fake_transport.dart';
 
-const _header = "<stream:stream xmlns='jabber:client' "
+const _header =
+    "<stream:stream xmlns='jabber:client' "
     "xmlns:stream='http://etherx.jabber.org/streams' id='s1'>";
-String _features(String inner) =>
-    '$_header<stream:features>$inner</stream:features>';
-const _plain = "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+String _features(String inner) => '$_header<stream:features>$inner</stream:features>';
+const _plain =
+    "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
     '<mechanism>PLAIN</mechanism></mechanisms>';
 const _tlsFeature = "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>";
 const _success = "<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>";
-const _bindResult = "<iq type='result' id='bind'>"
+const _bindResult =
+    "<iq type='result' id='bind'>"
     "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
     '<jid>alice@ex/res</jid></bind></iq>';
 
@@ -131,8 +133,10 @@ void main() {
     await pump(8);
     transports[0].deliver(_features(_plain));
     await pump();
-    transports[0].deliver("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
-        '<not-authorized/></failure>');
+    transports[0].deliver(
+      "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+      '<not-authorized/></failure>',
+    );
     await result;
 
     // Auth failure is permanent -> the second candidate is never dialed.

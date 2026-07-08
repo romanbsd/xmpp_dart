@@ -8,22 +8,23 @@ import 'package:xmpp_dart/xmpp_dart.dart' show ReconnectException, XmppClient;
 import 'support/fake_transport.dart';
 
 const _sm = StreamManagement.ns;
-const _header = "<stream:stream xmlns='jabber:client' "
+const _header =
+    "<stream:stream xmlns='jabber:client' "
     "xmlns:stream='http://etherx.jabber.org/streams' id='s1'>";
 
-String _features(String inner) =>
-    '$_header<stream:features>$inner</stream:features>';
+String _features(String inner) => '$_header<stream:features>$inner</stream:features>';
 
-const _plain = "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+const _plain =
+    "<mechanisms xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
     '<mechanism>PLAIN</mechanism></mechanisms>';
 
-const _bindResult = "<iq type='result' id='bind'>"
+const _bindResult =
+    "<iq type='result' id='bind'>"
     "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
     '<jid>alice@ex/res</jid></bind></iq>';
 
 void main() {
-  test('auto-reconnect resumes the SM session and replays queued stanzas',
-      () async {
+  test('auto-reconnect resumes the SM session and replays queued stanzas', () async {
     final transports = <FakeTransport>[];
     Future<Transport> factory(String host, int port, {bool secure = false}) async {
       final t = FakeTransport();
@@ -77,8 +78,7 @@ void main() {
     await pump();
     t2.deliver(_features(''));
     await pump();
-    expect(t2.writes.any((w) => w.contains('<resume') && w.contains('sess1')),
-        isTrue);
+    expect(t2.writes.any((w) => w.contains('<resume') && w.contains('sess1')), isTrue);
 
     // Server had received 0 of our stanzas -> we resend m1.
     t2.deliver("<resumed xmlns='$_sm' h='0'/>");
@@ -121,20 +121,18 @@ void main() {
     await fut;
     await pump();
 
-    t.deliver("<iq type='get' from='srv.ex' id='p1'>"
-        "<ping xmlns='urn:xmpp:ping'/></iq>");
+    t.deliver(
+      "<iq type='get' from='srv.ex' id='p1'>"
+      "<ping xmlns='urn:xmpp:ping'/></iq>",
+    );
     await pump();
 
-    expect(
-        t.writes.any((w) =>
-            w.contains('type="result"') && w.contains('id="p1"')),
-        isTrue);
+    expect(t.writes.any((w) => w.contains('type="result"') && w.contains('id="p1"')), isTrue);
 
     await client.close();
   });
 
-  test('permanent failure on reconnect surfaces as ReconnectException',
-      () async {
+  test('permanent failure on reconnect surfaces as ReconnectException', () async {
     final transports = <FakeTransport>[];
     Future<Transport> factory(String host, int port, {bool secure = false}) async {
       final t = FakeTransport();
@@ -178,8 +176,10 @@ void main() {
     final t2 = transports[1];
     t2.deliver(_features(_plain));
     await pump();
-    t2.deliver("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
-        '<not-authorized/></failure>');
+    t2.deliver(
+      "<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+      '<not-authorized/></failure>',
+    );
     await pump(16); // auth-fail -> teardown -> Reconnect give-up -> emit
 
     expect(errors.whereType<ReconnectException>(), isNotEmpty);
