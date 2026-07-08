@@ -1,0 +1,26 @@
+name: Publish to pub.dev
+
+# Publishes when you push a version tag like v0.1.0.
+# pub.dev authenticates the workflow via OIDC — no tokens or secrets needed.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  # Gate: don't publish a tag that doesn't build/format/analyze/test cleanly.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed lib test example
+      - run: dart analyze
+      - run: dart test
+
+  publish:
+    needs: test
+    permissions:
+      id-token: write # required for OIDC authentication with pub.dev
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
