@@ -90,6 +90,12 @@ void main() {
     });
   });
 
+  test('DnsSrvResolver default reads a system nameserver', () {
+    // Exercises _systemNameserver (/etc/resolv.conf or the 8.8.8.8 fallback).
+    final resolver = DnsSrvResolver();
+    expect(resolver.nameserver, isNotEmpty);
+  });
+
   group('compareSrv', () {
     test('lower priority first, then higher weight', () {
       final records = [

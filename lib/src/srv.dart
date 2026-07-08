@@ -146,10 +146,14 @@ int _skipName(Uint8List b, int offset) => _readName(b, offset).$2;
 /// `_xmpp-client._tcp.<domain>` (STARTTLS), then orders by SRV priority/weight.
 class DnsSrvResolver implements SrvResolver {
   final String nameserver;
+  final int port;
   final Duration timeout;
 
-  DnsSrvResolver({String? nameserver, this.timeout = const Duration(seconds: 5)})
-      : nameserver = nameserver ?? _systemNameserver();
+  DnsSrvResolver({
+    String? nameserver,
+    this.port = 53,
+    this.timeout = const Duration(seconds: 5),
+  }) : nameserver = nameserver ?? _systemNameserver();
 
   @override
   Future<List<XmppEndpoint>> lookup(String domain) async {
@@ -181,7 +185,7 @@ class DnsSrvResolver implements SrvResolver {
     try {
       socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       final resolver = InternetAddress(nameserver);
-      socket.send(query, resolver, 53);
+      socket.send(query, resolver, port);
 
       final completer = Completer<Uint8List>();
       final sub = socket.listen((event) {

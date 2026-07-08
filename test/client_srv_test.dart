@@ -1,8 +1,7 @@
 import 'package:test/test.dart';
-import 'package:xmpp_dart/src/connection.dart';
 import 'package:xmpp_dart/src/srv.dart';
 import 'package:xmpp_dart/src/transport.dart';
-import 'package:xmpp_dart/xmpp_dart.dart' show XmppClient;
+import 'package:xmpp_dart/xmpp_dart.dart' show SaslException, XmppClient;
 
 import 'support/fake_transport.dart';
 
@@ -106,6 +105,38 @@ void main() {
     await _driveLogin(transports.single); // only the live endpoint dialed
     await fut;
     expect(client.jid.toString(), 'alice@ex/res');
+    await client.close();
+  });
+
+  test('permanent failure on a candidate is not retried on the next', () async {
+    final transports = <FakeTransport>[];
+    Future<Transport> factory(String host, int port, {bool secure = false}) async {
+      final t = FakeTransport();
+      transports.add(t);
+      return t;
+    }
+
+    final client = XmppClient(
+      domain: 'ex',
+      username: 'alice',
+      password: 'secret',
+      transportFactory: factory,
+      resolver: _FakeResolver([
+        const XmppEndpoint('a.ex', 5223, directTls: true, priority: 1),
+        const XmppEndpoint('b.ex', 5223, directTls: true, priority: 2),
+      ]),
+    );
+
+    final result = expectLater(client.connect(), throwsA(isA<SaslException>()));
+    await pump(8);
+    transports[0].deliver(_features(_plain));
+    await pump();
+    transports[0].deliver("<failure xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+        '<not-authorized/></failure>');
+    await result;
+
+    // Auth failure is permanent -> the second candidate is never dialed.
+    expect(transports.length, 1);
     await client.close();
   });
 

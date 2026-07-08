@@ -107,6 +107,39 @@ void main() {
       expect(t.closed, isTrue);
     });
 
+    test('bind error reply -> NegotiationException', () async {
+      final t = FakeTransport();
+      final result = expectLater(
+          _conn(t, TlsMode.none).connect(),
+          throwsA(isA<NegotiationException>()));
+      await pump();
+      t.deliver(_features(_plain));
+      await pump();
+      t.deliver(_success);
+      await pump();
+      t.deliver(_features(''));
+      await pump();
+      t.deliver("<iq type='error' id='bind'><error type='cancel'/></iq>");
+      await result;
+    });
+
+    test('bind result without <jid> -> NegotiationException', () async {
+      final t = FakeTransport();
+      final result = expectLater(
+          _conn(t, TlsMode.none).connect(),
+          throwsA(isA<NegotiationException>()));
+      await pump();
+      t.deliver(_features(_plain));
+      await pump();
+      t.deliver(_success);
+      await pump();
+      t.deliver(_features(''));
+      await pump();
+      t.deliver("<iq type='result' id='bind'>"
+          "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'/></iq>");
+      await result;
+    });
+
     test('stream error surfaces on errors stream when online', () async {
       final t = FakeTransport();
       final conn = _conn(t, TlsMode.none);
