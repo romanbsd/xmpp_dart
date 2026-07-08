@@ -14,6 +14,10 @@ import 'transport.dart';
 
 const _nsPing = 'urn:xmpp:ping';
 
+/// Cap on consecutive `see-other-host` redirects, to bound a malicious or
+/// misconfigured redirect loop. Reset once a session reaches online.
+const _maxRedirects = 5;
+
 /// Builds a [Transport] for a host/port. Injectable so tests (and custom
 /// transports) can replace the default TCP socket.
 typedef TransportFactory = Future<Transport> Function(String host, int port, {bool secure});
@@ -72,6 +76,11 @@ class XmppClient {
   bool _abandoned = false;
   bool _established = false;
 
+  /// Pending `see-other-host` redirect target, consumed by the next connect.
+  (String, int, TlsMode)? _redirect;
+  int _redirectCount = 0;
+  TlsMode _currentTls = TlsMode.starttls;
+
   XmppClient({
     required this.domain,
     required this.username,
@@ -113,25 +122,43 @@ class XmppClient {
   }
 
   Future<void> _open() async {
-    final candidates = await _candidates();
-    Object? lastError;
-    for (final (host, port, tls) in candidates) {
-      try {
-        await _openEndpoint(host, port, tls);
-        return;
-      } catch (e) {
-        lastError = e;
-        // Permanent failures (auth/TLS/protocol) won't be fixed by another
-        // SRV host; transient ones (refused/timeout) move to the next.
-        if (isPermanentError(e)) rethrow;
+    while (true) {
+      final candidates = await _candidates();
+      Object? lastError;
+      var redirected = false;
+      for (final (host, port, tls) in candidates) {
+        try {
+          await _openEndpoint(host, port, tls);
+          return;
+        } catch (e) {
+          lastError = e;
+          // A negotiation-time <see-other-host/> reroutes us to a new host.
+          final target = _redirectTarget(e, tls);
+          if (target != null) {
+            _redirect = target;
+            _redirectCount++;
+            redirected = true;
+            break;
+          }
+          // Permanent failures (auth/TLS/protocol) won't be fixed by another
+          // SRV host; transient ones (refused/timeout) move to the next.
+          if (isPermanentError(e)) rethrow;
+        }
       }
+      if (redirected) continue; // dial the redirect target
+      throw lastError ?? StateError('no XMPP endpoints for $domain');
     }
-    throw lastError ?? StateError('no XMPP endpoints for $domain');
   }
 
-  /// Resolves the ordered list of `(host, port, tls)` candidates: the explicit
-  /// [host] if set, otherwise DNS SRV for [domain] (with a plaintext fallback).
+  /// Resolves the ordered list of `(host, port, tls)` candidates: a pending
+  /// redirect if set, then the explicit [host], otherwise DNS SRV for [domain]
+  /// (with a plaintext fallback).
   Future<List<(String, int, TlsMode)>> _candidates() async {
+    final redirect = _redirect;
+    if (redirect != null) {
+      _redirect = null;
+      return [redirect];
+    }
     if (host != null) {
       final p = port ?? (tls == TlsMode.direct ? 5223 : 5222);
       return [(host!, p, tls)];
@@ -143,7 +170,18 @@ class XmppClient {
     return [for (final e in endpoints) (e.host, e.port, e.directTls ? TlsMode.direct : TlsMode.starttls)];
   }
 
+  /// Parses a `see-other-host` redirect target from [error], if any, keeping
+  /// the same TLS policy. Returns null once [_maxRedirects] is exhausted.
+  (String, int, TlsMode)? _redirectTarget(Object error, TlsMode tls) {
+    if (_redirectCount >= _maxRedirects) return null;
+    if (error is StreamErrorException && error.seeOtherHost != null) {
+      return _parseSeeOtherHost(error.seeOtherHost!, tls);
+    }
+    return null;
+  }
+
   Future<void> _openEndpoint(String host, int port, TlsMode tls) async {
+    _currentTls = tls;
     final transport = await _transportFactory(host, port, secure: tls == TlsMode.direct);
     final conn = XmppConnection(
       transport: transport,
@@ -160,7 +198,7 @@ class XmppClient {
     await _errorSub?.cancel();
     _stateSub = conn.states.listen(_onState);
     _stanzaSub = conn.stanzas.listen(_stanzas.add);
-    _errorSub = conn.errors.listen(_errors.add);
+    _errorSub = conn.errors.listen(_onConnError);
     await _iq?.dispose();
     _iq = IqCaller(conn.stanzas, conn.send);
     await _iqResponder?.dispose();
@@ -178,6 +216,7 @@ class XmppClient {
     _states.add(s);
     if (s == XmppState.online) {
       _established = true;
+      _redirectCount = 0; // fresh budget after a successful session
       return;
     }
     if (s == XmppState.disconnected) {
@@ -189,6 +228,44 @@ class XmppClient {
         unawaited(_reconnect());
       }
     }
+  }
+
+  /// Forwards connection errors to [errors], capturing an online
+  /// `see-other-host` so the ensuing reconnect dials the new host.
+  void _onConnError(Object e) {
+    if (e is StreamErrorException &&
+        e.seeOtherHost != null &&
+        _redirectCount < _maxRedirects) {
+      final target = _parseSeeOtherHost(e.seeOtherHost!, _currentTls);
+      if (target != null) {
+        _redirect = target;
+        _redirectCount++;
+      }
+    }
+    _errors.add(e);
+  }
+
+  /// Parses `host`, `host:port`, or `[ipv6]:port` into a candidate. Keeps the
+  /// current TLS mode; the default port follows it (5223 direct, else 5222).
+  (String, int, TlsMode)? _parseSeeOtherHost(String raw, TlsMode tls) {
+    final s = raw.trim();
+    if (s.isEmpty) return null;
+    final defaultPort = tls == TlsMode.direct ? 5223 : 5222;
+    if (s.startsWith('[')) {
+      final end = s.indexOf(']');
+      if (end < 0) return null;
+      final host = s.substring(1, end);
+      final rest = s.substring(end + 1);
+      final port = rest.startsWith(':')
+          ? int.tryParse(rest.substring(1)) ?? defaultPort
+          : defaultPort;
+      return (host, port, tls);
+    }
+    final colon = s.indexOf(':');
+    if (colon < 0) return (s, defaultPort, tls);
+    final host = s.substring(0, colon);
+    final port = int.tryParse(s.substring(colon + 1)) ?? defaultPort;
+    return (host, port, tls);
   }
 
   Future<void> _reconnect() async {

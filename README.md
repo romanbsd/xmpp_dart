@@ -7,6 +7,8 @@ client only. Connects, secures (STARTTLS or direct TLS), authenticates
 Resolves servers via DNS SRV (`_xmpps-client`/`_xmpp-client`) when `host` is
 omitted, trying candidates in priority/weight order with a plaintext fallback to
 `domain:5222`. Inject a custom `SrvResolver` (e.g. DNS-over-HTTPS) if needed.
+Honors `<see-other-host/>` stream-error redirects (bounded to 5 hops), both
+during negotiation and on a live connection.
 
 Supports XEP-0198 Stream Management: stanza acknowledgement, liveness `<r/>`
 checks, and session resumption (replays unacked stanzas after a reconnect) —

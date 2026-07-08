@@ -30,7 +30,12 @@ const _transientStreamConditions = {
 class StreamErrorException extends XmppException {
   /// The defined condition child, e.g. `host-unknown`, `system-shutdown`.
   final String? condition;
-  StreamErrorException(super.message, {this.condition});
+
+  /// For a `see-other-host` condition, the redirect target as sent by the
+  /// server: `host`, `host:port`, or `[ipv6]:port`.
+  final String? seeOtherHost;
+
+  StreamErrorException(super.message, {this.condition, this.seeOtherHost});
 
   @override
   bool get isPermanent => !_transientStreamConditions.contains(condition);
