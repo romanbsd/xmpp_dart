@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Fix STARTTLS handshake failure caused by canceling the plaintext socket
+  subscription before calling `SecureSocket.secure`.
+- Add optional `onBadCertificate` to `TcpTransport.connect` for development
+  servers with self-signed certificates.
+
 ## 0.1.0
 
 Initial release. A lightweight TCP XMPP client.

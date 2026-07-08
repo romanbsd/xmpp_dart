@@ -16,6 +16,10 @@ void main() {
     caller = IqCaller(incoming.stream, sent.add, timeout: const Duration(milliseconds: 200));
   });
 
+  tearDown(() async {
+    await incoming.close();
+  });
+
   test('assigns id and resolves on matching response', () async {
     final fut = caller.request(xml('iq', attrs: {'type': 'get'}));
     final id = sent.single.getAttribute('id');

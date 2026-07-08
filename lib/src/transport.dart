@@ -23,21 +23,32 @@ abstract class Transport {
 
 /// [Transport] over a real TCP socket, with optional TLS.
 class TcpTransport implements Transport {
+  TcpTransport._(this._socket, {this._onBadCertificate}) {
+    _listen();
+  }
+
   Socket _socket;
   StreamSubscription<List<int>>? _sub;
   final _incoming = StreamController<List<int>>();
   final _done = Completer<void>();
-
-  TcpTransport._(this._socket) {
-    _listen();
-  }
+  final bool Function(X509Certificate certificate)? _onBadCertificate;
 
   /// Opens a socket. [secure] uses direct TLS (e.g. port 5223); otherwise a
   /// plaintext socket that may later be upgraded with [upgradeTls].
-  static Future<TcpTransport> connect(String host, int port, {bool secure = false}) async {
+  ///
+  /// [onBadCertificate] is forwarded to [SecureSocket.connect] / [upgradeTls]
+  /// for self-signed or private-CA servers (development only).
+  static Future<TcpTransport> connect(
+    String host,
+    int port, {
+    bool secure = false,
+    bool Function(X509Certificate certificate)? onBadCertificate,
+  }) async {
     // ignore: close_sinks -- socket lifetime owned by [TcpTransport.close].
-    final socket = secure ? await SecureSocket.connect(host, port) : await Socket.connect(host, port);
-    return TcpTransport._(socket);
+    final socket = secure
+        ? await SecureSocket.connect(host, port, onBadCertificate: onBadCertificate)
+        : await Socket.connect(host, port);
+    return TcpTransport._(socket, onBadCertificate: onBadCertificate);
   }
 
   void _listen() {
@@ -59,8 +70,12 @@ class TcpTransport implements Transport {
 
   @override
   Future<void> upgradeTls(String host) async {
-    await _sub?.cancel();
-    _socket = await SecureSocket.secure(_socket, host: host);
+    // SecureSocket.secure requires an active subscription on the plaintext
+    // socket; canceling first causes the peer to drop the TLS handshake.
+    final oldSub = _sub;
+    _sub = null;
+    _socket = await SecureSocket.secure(_socket, host: host, onBadCertificate: _onBadCertificate);
+    await oldSub?.cancel();
     _listen();
   }
 

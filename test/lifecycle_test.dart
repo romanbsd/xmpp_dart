@@ -73,6 +73,7 @@ void main() {
       final expectation = expectLater(fut, throwsA(isA<StateError>()));
       await caller.dispose();
       await expectation;
+      await incoming.close();
     });
 
     test('duplicate in-flight id is rejected', () async {
@@ -82,6 +83,7 @@ void main() {
       final second = caller.request(xml('iq', attrs: {'type': 'get', 'id': 'dup'}));
       await expectLater(second, throwsA(isA<IqException>()));
       await caller.dispose();
+      await incoming.close();
     });
 
     test('send failure removes the pending entry and errors the future', () async {
@@ -92,6 +94,7 @@ void main() {
       // id freed: a retry with the same id is not a duplicate.
       final retry = caller.request(xml('iq', attrs: {'type': 'get', 'id': 'z'}));
       await expectLater(retry, throwsA(isA<StateError>()));
+      await incoming.close();
     });
   });
 
