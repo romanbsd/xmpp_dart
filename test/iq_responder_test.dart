@@ -18,6 +18,10 @@ void main() {
     r = IqResponder(incoming.stream, sent.add);
   });
 
+  tearDown(() async {
+    await incoming.close();
+  });
+
   XmlElement iqGet(String ns, String name, {String from = 'server', String id = 'q1'}) => xml(
     'iq',
     attrs: {'type': 'get', 'from': from, 'id': id},
