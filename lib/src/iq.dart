@@ -13,8 +13,13 @@ class IqException implements Exception {
 ///
 /// Decoupled from the connection: give it the incoming stanza stream and a send
 /// callback, so it can be tested without a socket.
+///
+/// [send] may be sync or async (`FutureOr`). Callers that pass
+/// `XmppConnection.send` (a `Future<void> Function`) must have that Future
+/// awaited — otherwise a closed-socket write becomes an unhandled async error
+/// and the IQ future hangs until timeout.
 class IqCaller {
-  final void Function(XmlElement) _send;
+  final FutureOr<void> Function(XmlElement) _send;
   final Duration timeout;
   final _pending = <String, Completer<XmlElement>>{};
   late final StreamSubscription<XmlElement> _sub;
@@ -30,25 +35,25 @@ class IqCaller {
   /// [timeout] completes with [TimeoutException]. A send failure, a duplicate
   /// in-flight `id`, or [dispose] completes the future with an error rather
   /// than hanging.
-  Future<XmlElement> request(XmlElement iq) {
+  Future<XmlElement> request(XmlElement iq) async {
     if (_disposed) {
-      return Future.error(StateError('IqCaller disposed'));
+      throw StateError('IqCaller disposed');
     }
     var id = iq.getAttribute('id');
     if (id == null) {
       id = 'iq-${_seq++}';
       iq.setAttribute('id', id);
     } else if (_pending.containsKey(id)) {
-      return Future.error(IqException('duplicate in-flight IQ id "$id"'));
+      throw IqException('duplicate in-flight IQ id "$id"');
     }
 
     final completer = Completer<XmlElement>();
     _pending[id] = completer;
     try {
-      _send(iq);
-    } catch (e) {
+      await _send(iq);
+    } catch (e, st) {
       _pending.remove(id);
-      return Future.error(e);
+      Error.throwWithStackTrace(e, st);
     }
     return completer.future.timeout(
       timeout,

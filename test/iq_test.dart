@@ -50,4 +50,28 @@ void main() {
     final fut = caller.request(xml('iq', attrs: {'type': 'get'}));
     await expectLater(fut, throwsA(isA<TimeoutException>()));
   });
+
+  test('sync send failure fails the request future', () async {
+    caller = IqCaller(incoming.stream, (_) {
+      throw StateError('Bad state: StreamSink is closed');
+    }, timeout: const Duration(milliseconds: 200));
+
+    await expectLater(
+      caller.request(xml('iq', attrs: {'type': 'get', 'id': 'sync-fail'})),
+      throwsA(isA<StateError>().having((e) => e.message, 'message', contains('StreamSink is closed'))),
+    );
+  });
+
+  test('async send failure fails the request future', () async {
+    // Mirrors XmppClient wiring: IqCaller(conn.stanzas, conn.send) where send is
+    // Future<void> Function(XmlElement). Calling it as void discards the Future.
+    caller = IqCaller(incoming.stream, (_) async {
+      throw StateError('Bad state: StreamSink is closed');
+    }, timeout: const Duration(milliseconds: 50));
+
+    await expectLater(
+      caller.request(xml('iq', attrs: {'type': 'get', 'id': 'async-fail'})),
+      throwsA(isA<StateError>().having((e) => e.message, 'message', contains('StreamSink is closed'))),
+    );
+  });
 }

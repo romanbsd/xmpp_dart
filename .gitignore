@@ -8,3 +8,7 @@ pubspec.lock
 
 # Reference source (not part of the package)
 xmpp.js/
+
+# LLMs
+.codegraph/
+.serena/

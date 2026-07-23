@@ -33,7 +33,7 @@ class IqError implements Exception {
 /// Decoupled from the connection like [IqCaller]: give it the incoming stanza
 /// stream and a send callback.
 class IqResponder {
-  final void Function(XmlElement) _send;
+  final FutureOr<void> Function(XmlElement) _send;
   final _routes = <String, IqHandler>{};
   late final StreamSubscription<XmlElement> _sub;
 
@@ -54,24 +54,24 @@ class IqResponder {
 
     final children = el.childElements.toList();
     if (children.length != 1) {
-      _send(_error(el, null, 'modify', 'bad-request'));
+      await _send(_error(el, null, 'modify', 'bad-request'));
       return;
     }
     final child = children.first;
     final key = '$type|${child.getAttribute('xmlns') ?? ''}|${child.name.local}';
     final handler = _routes[key];
     if (handler == null) {
-      _send(_error(el, child, 'cancel', 'service-unavailable'));
+      await _send(_error(el, child, 'cancel', 'service-unavailable'));
       return;
     }
 
     try {
       final result = await handler(el, child);
-      _send(_result(el, result));
+      await _send(_result(el, result));
     } on IqError catch (e) {
-      _send(_error(el, child, e.type, e.condition));
+      await _send(_error(el, child, e.type, e.condition));
     } catch (_) {
-      _send(_error(el, child, 'cancel', 'internal-server-error'));
+      await _send(_error(el, child, 'cancel', 'internal-server-error'));
     }
   }
 

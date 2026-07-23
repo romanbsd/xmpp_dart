@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Fix unhandled `StreamSink is closed` when sending an IQ over a closed socket:
+  `IqCaller` / `IqResponder` now take `FutureOr<void> Function(XmlElement)` and
+  await async send callbacks (e.g. `XmppConnection.send`) instead of discarding
+  the Future.
+
 ## 0.1.1
 
 - Fix STARTTLS handshake failure caused by canceling the plaintext socket

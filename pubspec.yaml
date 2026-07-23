@@ -3,7 +3,7 @@ description: >-
   A lightweight, dependency-minimal Dart XMPP client over TCP: STARTTLS/direct
   TLS, SASL SCRAM-SHA-1/PLAIN, resource binding, IQ, XEP-0198 with resumption,
   and DNS SRV.
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/romanbsd/xmpp_dart
 issue_tracker: https://github.com/romanbsd/xmpp_dart/issues
 topics:
