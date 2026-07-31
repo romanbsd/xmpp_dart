@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+- Fix stream parser leaving `XmlElement.namespaceUri` null on received stanzas.
+  `XmlStreamParser` now enables `withNamespace` on `package:xml`'s event decoder
+  so default and prefixed xmlns declarations resolve the same way as
+  `XmlDocument.parse`.
+
 ## 0.1.2
 
 - Fix unhandled `StreamSink is closed` when sending an IQ over a closed socket:

@@ -90,5 +90,28 @@ void main() {
       expect(() => p.feed('<message></wrong>'), returnsNormally);
       expect(errors, isNotEmpty);
     });
+
+    test('resolves namespaceUri on stanza elements and children', () {
+      final received = <XmlElement>[];
+      p.stanzas.listen(received.add);
+      p.feed("<stream:stream xmlns='jabber:client' id='c1'>");
+      p.feed(
+        "<iq type='result' id='1'>"
+        "<manifest xmlns='urn:xmpp:agent-api:0' version='1.4.0'>"
+        "<hash xmlns='urn:xmpp:hashes:2' algo='sha-256'>abc=</hash>"
+        '<json>{}</json>'
+        '</manifest>'
+        '</iq>',
+      );
+      expect(received, hasLength(1));
+      final iq = received.single;
+      // Inherited from <stream:stream xmlns='jabber:client'> (not buffered).
+      expect(iq.namespaceUri, 'jabber:client');
+      final manifest = iq.getElement('manifest')!;
+      final hash = manifest.getElement('hash')!;
+      expect(manifest.namespaceUri, 'urn:xmpp:agent-api:0');
+      expect(hash.namespaceUri, 'urn:xmpp:hashes:2');
+      expect(manifest.getElement('json')!.namespaceUri, 'urn:xmpp:agent-api:0');
+    });
   });
 }
