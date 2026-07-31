@@ -54,7 +54,10 @@ class XmlStreamParser {
   void reset() {
     _depth = 0;
     _buffer.clear();
-    _sink = XmlEventDecoder().startChunkedConversion(_EventSink(_onEvents));
+    // withNamespace: package:xml 7 only populates XmlElement.namespaceUri when
+    // the event decoder annotates events; XmlDocument.parse enables this, and
+    // stream consumers expect the same (xmlns attrs alone are not enough).
+    _sink = XmlEventDecoder(withNamespace: true).startChunkedConversion(_EventSink(_onEvents));
   }
 
   void feed(String chunk) {

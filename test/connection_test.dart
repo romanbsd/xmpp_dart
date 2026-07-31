@@ -142,4 +142,52 @@ void main() {
     await pump();
     expect(stanzas, contains('message'));
   });
+
+  test('peer socket close while online emits disconnected', () async {
+    final t = FakeTransport();
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'secret', tls: TlsMode.none);
+    final states = <XmppState>[];
+    conn.states.listen(states.add);
+
+    final fut = conn.connect();
+    await pump();
+    t.deliver(_features(_plainMechs));
+    await pump();
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
+    await pump();
+    t.deliver(_features(''));
+    await pump();
+    t.deliver(_bindResult);
+    await fut;
+    expect(conn.state, XmppState.online);
+
+    // Server process exit / TCP FIN — transport.done completes without a stream error.
+    t.drop();
+    await pump();
+
+    expect(conn.state, XmppState.disconnected);
+    expect(states, contains(XmppState.disconnected));
+  });
+
+  test('socket error while online tears down to disconnected', () async {
+    final t = FakeTransport();
+    final conn = XmppConnection(transport: t, domain: 'ex', username: 'alice', password: 'secret', tls: TlsMode.none);
+
+    final fut = conn.connect();
+    await pump();
+    t.deliver(_features(_plainMechs));
+    await pump();
+    t.deliver("<success xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>");
+    await pump();
+    t.deliver(_features(''));
+    await pump();
+    t.deliver(_bindResult);
+    await fut;
+    expect(conn.state, XmppState.online);
+
+    t.deliverError(Exception('Connection reset by peer'));
+    await pump(8);
+
+    expect(conn.state, XmppState.disconnected);
+  });
 }
