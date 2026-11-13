@@ -209,7 +209,7 @@ class XmppConnection {
   Future<void> _startTls() async {
     transport.write(xml('starttls', attrs: {'xmlns': _nsTls}).toXmlString());
     final proceed = await _read();
-    if (proceed.name.local != 'proceed' || proceed.getAttribute('xmlns') != _nsTls) {
+    if (proceed.name.local != 'proceed' || namespaceUriOf(proceed) != _nsTls) {
       throw NegotiationException('expected <proceed/>, got <${proceed.name.local}>');
     }
     try {
@@ -224,7 +224,7 @@ class XmppConnection {
   Future<bool> _tryResume() async {
     transport.write(sm!.resumeElement().toXmlString());
     final reply = await _read();
-    if (reply.getAttribute('xmlns') != StreamManagement.ns) {
+    if (namespaceUriOf(reply) != StreamManagement.ns) {
       throw NegotiationException('unexpected resume reply <${reply.name.local}>');
     }
     switch (reply.name.local) {
@@ -250,7 +250,7 @@ class XmppConnection {
     }
     transport.write(sm!.enableElement().toXmlString());
     final reply = await _read();
-    if (reply.getAttribute('xmlns') == StreamManagement.ns && reply.name.local == 'enabled') {
+    if (namespaceUriOf(reply) == StreamManagement.ns && reply.name.local == 'enabled') {
       sm!.onEnabled(reply);
       sm!.jid = jid;
     }
@@ -269,11 +269,10 @@ class XmppConnection {
 
   Future<void> _authenticate(XmlElement features) async {
     final offered =
-        _child(
-          features,
-          'mechanisms',
-          ns: _nsSasl,
-        )?.childElements.where((e) => e.name.local == 'mechanism').map((e) => e.innerText).toList() ??
+        _child(features, 'mechanisms', ns: _nsSasl)?.childElements
+            .where((e) => e.name.local == 'mechanism' && namespaceUriOf(e) == _nsSasl)
+            .map((e) => e.innerText)
+            .toList() ??
         const <String>[];
 
     final mech = selectMechanism(offered, username, password);
@@ -292,7 +291,7 @@ class XmppConnection {
 
     while (true) {
       final el = await _read();
-      if (el.getAttribute('xmlns') != _nsSasl) {
+      if (namespaceUriOf(el) != _nsSasl) {
         throw NegotiationException('unexpected element during SASL: <${el.name.local}>');
       }
       switch (el.name.local) {
@@ -323,7 +322,8 @@ class XmppConnection {
     if (res.getAttribute('type') == 'error') {
       throw NegotiationException('resource binding failed: ${res.toXmlString()}');
     }
-    final jidText = _child(_child(res, 'bind', ns: _nsBind) ?? res, 'jid')?.innerText;
+    final bound = _child(res, 'bind', ns: _nsBind);
+    final jidText = bound == null ? null : _child(bound, 'jid', ns: _nsBind)?.innerText;
     if (jidText == null) {
       throw NegotiationException('bind result missing <jid>: ${res.toXmlString()}');
     }
@@ -333,7 +333,7 @@ class XmppConnection {
   // --- element routing ---
 
   void _onElement(XmlElement el) {
-    if (el.name.qualified == 'stream:error') {
+    if (el.name.local == 'error' && namespaceUriOf(el) == _nsStream) {
       final condition = el.childElements.isEmpty ? null : el.childElements.first.name.local;
       final seeOtherHost = condition == 'see-other-host' ? el.childElements.first.innerText.trim() : null;
       final err = StreamErrorException(el.toXmlString(), condition: condition, seeOtherHost: seeOtherHost);
@@ -347,7 +347,7 @@ class XmppConnection {
     }
 
     // XEP-0198 flow control (only meaningful once online with SM enabled).
-    if (_online && sm != null && sm!.enabled && el.getAttribute('xmlns') == StreamManagement.ns) {
+    if (_online && sm != null && sm!.enabled && namespaceUriOf(el) == StreamManagement.ns) {
       switch (el.name.local) {
         case 'r':
           transport.write(sm!.ackElement().toXmlString());
@@ -428,7 +428,7 @@ class XmppConnection {
 
   static XmlElement? _child(XmlElement parent, String local, {String? ns}) {
     for (final e in parent.childElements) {
-      if (e.name.local == local && (ns == null || e.getAttribute('xmlns') == ns)) {
+      if (e.name.local == local && (ns == null || namespaceUriOf(e) == ns)) {
         return e;
       }
     }

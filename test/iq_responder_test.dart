@@ -76,6 +76,49 @@ void main() {
     expect(error.getElement('forbidden'), isNotNull);
   });
 
+  for (final condition in ['forbidden', 'internal-server-error', 'service-unavailable']) {
+    test('$condition reply preserves an inherited payload prefix on the wire', () async {
+      if (condition != 'service-unavailable') {
+        r.get('urn:example', 'query', (_, _) {
+          if (condition == 'forbidden') throw IqError('forbidden', type: 'auth');
+          throw StateError('boom');
+        });
+      }
+      final request = XmlDocument.parse("<iq xmlns:x='urn:example' type='get' id='q'><x:query/></iq>").rootElement;
+      incoming.add(request);
+      await pump();
+
+      final reply = XmlDocument.parse(sent.single.toXmlString()).rootElement;
+      expect(reply.getAttribute('type'), 'error');
+      expect(reply.childElements.first.name.local, 'query');
+      expect(reply.childElements.first.namespaceUri, 'urn:example');
+      expect(reply.getElement('error')!.getElement(condition), isNotNull);
+      expect(request.childElements.first.getAttribute('xmlns:x'), isNull);
+    });
+  }
+
+  test('error payload preserves ancestor namespaces and descendant overrides', () async {
+    r.get('urn:example', 'query', (_, _) => throw IqError('forbidden'));
+    final document = XmlDocument.parse(
+      "<root xmlns='urn:example' xmlns:a='urn:attributes' xmlns:x='urn:outer'>"
+      "<iq type='get' id='q' xmlns:x='urn:inner'>"
+      "<query a:flag='yes'><x:item/><nested xmlns='' xmlns:x='urn:local'><x:item/></nested></query>"
+      '</iq></root>',
+    );
+    incoming.add(document.rootElement.childElements.single);
+    await pump();
+
+    final reply = XmlDocument.parse(sent.single.toXmlString()).rootElement;
+    final payload = reply.childElements.first;
+    expect(payload.namespaceUri, 'urn:example');
+    expect(payload.getAttribute('flag', namespaceUri: 'urn:attributes'), 'yes');
+    expect(payload.childElements.first.namespaceUri, 'urn:inner');
+    final nested = payload.childElements.last;
+    expect(nested.namespaceUri, isNull);
+    expect(nested.childElements.single.namespaceUri, 'urn:local');
+    expect(reply.getElement('error')!.namespaceUri, isNull);
+  });
+
   test('handler throwing anything else -> internal-server-error', () async {
     r.get('urn:example', 'query', (_, _) => throw StateError('boom'));
     incoming.add(iqGet('urn:example', 'query'));
@@ -108,5 +151,32 @@ void main() {
     await pump();
     expect(setHit, isTrue);
     expect(sent.single.getAttribute('type'), 'result');
+  });
+  for (final payload in ["<query xmlns='urn:example'/>", "<x:query xmlns:x='urn:example'/>"]) {
+    test('routes parsed payload $payload by expanded namespace', () async {
+      r.get('urn:example', 'query', (_, _) => null);
+      incoming.add(XmlDocument.parse("<iq type='get' id='ns'>$payload</iq>").rootElement);
+      await pump();
+      expect(sent.single.getAttribute('type'), 'result');
+    });
+  }
+
+  test('routes payload whose prefix is inherited from the parent IQ', () async {
+    r.set('urn:example', 'query', (_, _) => null);
+    incoming.add(XmlDocument.parse("<iq xmlns:x='urn:example' type='set' id='ns'><x:query/></iq>").rootElement);
+    await pump();
+    expect(sent.single.getAttribute('type'), 'result');
+  });
+
+  test('wrong namespace does not match a route with the same local name', () async {
+    var called = false;
+    r.get('urn:example', 'query', (_, _) {
+      called = true;
+      return null;
+    });
+    incoming.add(XmlDocument.parse("<iq xmlns:x='urn:wrong' type='get' id='ns'><x:query/></iq>").rootElement);
+    await pump();
+    expect(called, isFalse);
+    expect(sent.single.getElement('error')!.getElement('service-unavailable'), isNotNull);
   });
 }

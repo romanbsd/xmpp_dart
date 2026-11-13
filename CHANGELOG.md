@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Match XML protocol elements by resolved namespace URI and local name rather
+  than literal `xmlns` attributes or prefix spelling. STARTTLS, SASL, resource
+  binding, stream management, stream errors, and IQ handlers now accept legal
+  default, prefixed, and inherited namespace declarations while rejecting
+  unrelated namespaces.
+
 ## 0.1.3
 
 - Fix stream parser leaving `XmlElement.namespaceUri` null on received stanzas.

@@ -26,7 +26,7 @@ class IqError implements Exception {
 }
 
 /// Answers inbound IQ queries (RFC 6120 requires every `get`/`set` be replied
-/// to). Routes by `(type, child xmlns, child name)`; unmatched queries get
+/// to). Routes by `(type, child namespace URI, child local name)`; unmatched queries get
 /// `service-unavailable`, malformed ones `bad-request`, and a throwing handler
 /// `internal-server-error`.
 ///
@@ -58,7 +58,7 @@ class IqResponder {
       return;
     }
     final child = children.first;
-    final key = '$type|${child.getAttribute('xmlns') ?? ''}|${child.name.local}';
+    final key = '$type|${namespaceUriOf(child) ?? ''}|${child.name.local}';
     final handler = _routes[key];
     if (handler == null) {
       await _send(_error(el, child, 'cancel', 'service-unavailable'));
@@ -83,8 +83,20 @@ class IqResponder {
 
   XmlElement _result(XmlElement query, XmlElement? payload) => _reply(query, 'result', [?payload]);
 
+  XmlElement _copyPayload(XmlElement child) {
+    final copy = child.copy();
+    // A subtree copy loses ancestor declarations; make its namespace scope
+    // explicit before attaching it to the reply. Descendant overrides stay put.
+    for (final namespace in child.namespaces) {
+      if (namespace.prefix == 'xml') continue; // implicitly bound by XML
+      final name = namespace.prefix.isEmpty ? 'xmlns' : 'xmlns:${namespace.prefix}';
+      copy.setAttribute(name, namespace.uri);
+    }
+    return copy;
+  }
+
   XmlElement _error(XmlElement query, XmlElement? child, String type, String condition) => _reply(query, 'error', [
-    ?child?.copy(),
+    if (child != null) _copyPayload(child),
     xml(
       'error',
       attrs: {'type': type},
