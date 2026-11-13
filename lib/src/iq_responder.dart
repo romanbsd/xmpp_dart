@@ -26,7 +26,7 @@ class IqError implements Exception {
 }
 
 /// Answers inbound IQ queries (RFC 6120 requires every `get`/`set` be replied
-/// to). Routes by `(type, child xmlns, child name)`; unmatched queries get
+/// to). Routes by `(type, child namespace URI, child local name)`; unmatched queries get
 /// `service-unavailable`, malformed ones `bad-request`, and a throwing handler
 /// `internal-server-error`.
 ///
@@ -58,7 +58,7 @@ class IqResponder {
       return;
     }
     final child = children.first;
-    final key = '$type|${child.getAttribute('xmlns') ?? ''}|${child.name.local}';
+    final key = '$type|${namespaceUriOf(child) ?? ''}|${child.name.local}';
     final handler = _routes[key];
     if (handler == null) {
       await _send(_error(el, child, 'cancel', 'service-unavailable'));

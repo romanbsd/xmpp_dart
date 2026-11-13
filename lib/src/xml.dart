@@ -15,6 +15,20 @@ XmlElement xml(String name, {Map<String, String>? attrs, List<XmlElement>? child
   );
 }
 
+/// Resolves the expanded namespace, including declarations on ancestors.
+///
+/// Parsed names carry their resolved URI. Programmatic trees built with [xml]
+/// instead carry xmlns attributes, so consult their in-scope declarations too.
+String? namespaceUriOf(XmlElement element) {
+  final resolved = element.namespaceUri;
+  if (resolved != null) return resolved;
+  final prefix = element.name.prefix ?? '';
+  for (final namespace in element.namespaces) {
+    if (namespace.prefix == prefix) return namespace.uri;
+  }
+  return null;
+}
+
 /// Incremental parser for an XMPP stream.
 ///
 /// XMPP frames the whole session inside one never-closed `<stream:stream>`

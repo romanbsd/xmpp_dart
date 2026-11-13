@@ -109,4 +109,31 @@ void main() {
     expect(setHit, isTrue);
     expect(sent.single.getAttribute('type'), 'result');
   });
+  for (final payload in ["<query xmlns='urn:example'/>", "<x:query xmlns:x='urn:example'/>"]) {
+    test('routes parsed payload $payload by expanded namespace', () async {
+      r.get('urn:example', 'query', (_, _) => null);
+      incoming.add(XmlDocument.parse("<iq type='get' id='ns'>$payload</iq>").rootElement);
+      await pump();
+      expect(sent.single.getAttribute('type'), 'result');
+    });
+  }
+
+  test('routes payload whose prefix is inherited from the parent IQ', () async {
+    r.set('urn:example', 'query', (_, _) => null);
+    incoming.add(XmlDocument.parse("<iq xmlns:x='urn:example' type='set' id='ns'><x:query/></iq>").rootElement);
+    await pump();
+    expect(sent.single.getAttribute('type'), 'result');
+  });
+
+  test('wrong namespace does not match a route with the same local name', () async {
+    var called = false;
+    r.get('urn:example', 'query', (_, _) {
+      called = true;
+      return null;
+    });
+    incoming.add(XmlDocument.parse("<iq xmlns:x='urn:wrong' type='get' id='ns'><x:query/></iq>").rootElement);
+    await pump();
+    expect(called, isFalse);
+    expect(sent.single.getElement('error')!.getElement('service-unavailable'), isNotNull);
+  });
 }
