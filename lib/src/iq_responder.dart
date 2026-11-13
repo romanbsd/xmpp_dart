@@ -83,8 +83,20 @@ class IqResponder {
 
   XmlElement _result(XmlElement query, XmlElement? payload) => _reply(query, 'result', [?payload]);
 
+  XmlElement _copyPayload(XmlElement child) {
+    final copy = child.copy();
+    // A subtree copy loses ancestor declarations; make its namespace scope
+    // explicit before attaching it to the reply. Descendant overrides stay put.
+    for (final namespace in child.namespaces) {
+      if (namespace.prefix == 'xml') continue; // implicitly bound by XML
+      final name = namespace.prefix.isEmpty ? 'xmlns' : 'xmlns:${namespace.prefix}';
+      copy.setAttribute(name, namespace.uri);
+    }
+    return copy;
+  }
+
   XmlElement _error(XmlElement query, XmlElement? child, String type, String condition) => _reply(query, 'error', [
-    ?child?.copy(),
+    if (child != null) _copyPayload(child),
     xml(
       'error',
       attrs: {'type': type},
